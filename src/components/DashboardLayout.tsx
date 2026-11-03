@@ -33,12 +33,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Desktop Sidebar - Minimal Linear style */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-56 lg:flex-col">
-        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-background px-4 py-6">
+      {/* Desktop Sidebar - Precision Minimalism */}
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-56 lg:flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--canvas))]">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto px-4 py-6">
           {/* Logo */}
           <div className="flex h-8 shrink-0 items-center">
-            <span className="text-sm font-semibold tracking-tight">ROPI</span>
+            <span className="text-sm font-semibold tracking-tight text-[hsl(var(--ink))]">ROPI</span>
           </div>
 
           {/* Navigation */}
@@ -51,12 +51,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <button
                       onClick={() => navigate(item.href)}
                       className={`
-                        group flex gap-x-3 rounded-md p-2 text-sm font-medium leading-6 w-full text-left
-                        transition-colors duration-150
+                        group flex gap-x-3 rounded-lg p-2 text-sm font-medium leading-6 w-full text-left
+                        transition-all duration-150
                         ${
                           isActive
-                            ? 'bg-secondary text-foreground'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                            ? 'bg-[hsl(var(--accent)_/_0.1)] text-[hsl(var(--accent))]'
+                            : 'text-[hsl(var(--secondary))] hover:text-[hsl(var(--ink))] hover:bg-[hsl(var(--surface))]'
                         }
                       `}
                     >
@@ -70,16 +70,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
 
           {/* User menu - Bottom */}
-          <div className="border-t border-border pt-4">
+          <div className="border-t border-[hsl(var(--border))] pt-4">
             <div className="flex items-center gap-x-3 px-2 py-2">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
+                <p className="text-sm font-medium text-[hsl(var(--ink))] truncate">
                   {user?.email}
                 </p>
               </div>
               <button
                 onClick={signOut}
-                className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+                className="p-2 text-[hsl(var(--secondary))] hover:text-[hsl(var(--ink))] transition-colors"
                 title="Sign out"
               >
                 <LogOut className="h-4 w-4" />
