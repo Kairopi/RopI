@@ -80,7 +80,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 sm:py-2.5 bg-paper border border-line rounded-md text-sm text-ink placeholder-slate focus:outline-none focus:ring-2 focus:ring-ultramarine focus:border-transparent transition-all touch-manipulation"
+                className="w-full px-3 py-3 bg-paper border border-line rounded-md text-sm text-ink placeholder-slate focus:outline-none focus:ring-2 focus:ring-ultramarine focus:border-transparent transition-all touch-manipulation min-h-[44px]"
                 placeholder="you@company.com"
               />
             </div>
@@ -96,7 +96,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-3 py-2 sm:py-2.5 bg-paper border border-line rounded-md text-sm text-ink placeholder-slate focus:outline-none focus:ring-2 focus:ring-ultramarine focus:border-transparent transition-all touch-manipulation"
+                  className="w-full px-3 py-3 bg-paper border border-line rounded-md text-sm text-ink placeholder-slate focus:outline-none focus:ring-2 focus:ring-ultramarine focus:border-transparent transition-all touch-manipulation min-h-[44px]"
                   placeholder="••••••••"
                   minLength={6}
                 />
@@ -106,25 +106,25 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-ultramarine hover:bg-[#2A42C0] active:bg-[#243AAB] text-paper font-medium py-2.5 sm:py-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px]"
+              className="w-full bg-ultramarine hover:bg-[#2A42C0] active:bg-[#243AAB] text-paper font-medium rounded-md text-sm sm:text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px] py-3"
             >
               {loading ? 'Loading...' : useMagicLink ? 'Send magic link' : isSignUp ? 'Create account' : 'Sign in'}
             </button>
           </form>
 
-          <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-3">
+          <div className="mt-4 sm:mt-6 space-y-3">
             <button
               onClick={() => setUseMagicLink(!useMagicLink)}
-              className="w-full text-xs sm:text-sm text-slate hover:text-ink font-medium transition-colors touch-manipulation min-h-[44px] sm:min-h-0"
+              className="w-full text-sm text-slate hover:text-ink font-medium transition-colors touch-manipulation min-h-[44px] py-3 rounded-md hover:bg-mist"
             >
               {useMagicLink ? 'Use password instead' : 'Use magic link instead'}
             </button>
 
-            <div className="text-center text-xs sm:text-sm text-slate">
+            <div className="text-center text-sm text-slate min-h-[44px] flex items-center justify-center">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="text-ultramarine hover:text-[#2A42C0] font-medium transition-colors touch-manipulation"
+                className="text-ultramarine hover:text-[#2A42C0] font-medium transition-colors ml-1 py-2 px-2 -mx-2 rounded touch-manipulation"
               >
                 {isSignUp ? 'Sign in' : 'Create account'}
               </button>
