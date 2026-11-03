@@ -23,10 +23,10 @@ export default function Login() {
     try {
       if (useMagicLink) {
         await signInWithMagicLink(email)
-        setSuccess('Magic link sent! Check your email.')
+        setSuccess('Magic link sent. Check your email.')
       } else if (isSignUp) {
         await signUp(email, password)
-        setSuccess('Account created! Check your email to verify.')
+        setSuccess('Account created. Check your email to verify.')
       } else {
         await signIn(email, password)
         navigate('/dashboard')
@@ -39,37 +39,39 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-50">
-      <div className="max-w-md w-full mx-4">
+    <div className="min-h-screen flex items-center justify-center bg-mist px-4">
+      <div className="w-full max-w-[400px]">
+        {/* ROPI Wordmark */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary-600 mb-2">
-            ROPI
+          <h1 className="text-2xl font-bold text-ink tracking-tight mb-1">
+            ropi.
           </h1>
-          <p className="text-neutral-600">
+          <p className="text-sm text-slate">
             AI Life Operating System
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-neutral-900 mb-6">
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
+        {/* Login Card */}
+        <div className="bg-paper rounded-lg shadow-card border border-line p-6">
+          <h2 className="text-xl font-semibold text-ink mb-6">
+            {isSignUp ? 'Create account' : 'Welcome back'}
           </h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-error-50 text-error-700 rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-error-light border border-error rounded-md text-sm text-error">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-success-50 text-success-700 rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-success-light border border-success rounded-md text-sm text-success">
               {success}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-ink mb-1.5">
                 Email
               </label>
               <input
@@ -78,14 +80,14 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                placeholder="you@example.com"
+                className="w-full px-3 py-2 bg-paper border border-line rounded-md text-sm text-ink placeholder-slate focus:outline-none focus:ring-2 focus:ring-ultramarine focus:border-transparent transition-all"
+                placeholder="you@company.com"
               />
             </div>
 
             {!useMagicLink && (
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-neutral-700 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-ink mb-1.5">
                   Password
                 </label>
                 <input
@@ -94,7 +96,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  className="w-full px-3 py-2 bg-paper border border-line rounded-md text-sm text-ink placeholder-slate focus:outline-none focus:ring-2 focus:ring-ultramarine focus:border-transparent transition-all"
                   placeholder="••••••••"
                   minLength={6}
                 />
@@ -104,33 +106,33 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-ultramarine hover:bg-[#2A42C0] text-paper font-medium py-2.5 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Loading...' : useMagicLink ? 'Send Magic Link' : isSignUp ? 'Sign Up' : 'Sign In'}
+              {loading ? 'Loading...' : useMagicLink ? 'Send magic link' : isSignUp ? 'Create account' : 'Sign in'}
             </button>
           </form>
 
           <div className="mt-6 space-y-3">
             <button
               onClick={() => setUseMagicLink(!useMagicLink)}
-              className="w-full text-sm text-primary-600 hover:text-primary-700 font-medium"
+              className="w-full text-sm text-slate hover:text-ink font-medium transition-colors"
             >
               {useMagicLink ? 'Use password instead' : 'Use magic link instead'}
             </button>
 
-            <div className="text-center text-sm text-neutral-600">
+            <div className="text-center text-sm text-slate">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="text-primary-600 hover:text-primary-700 font-medium"
+                className="text-ultramarine hover:text-[#2A42C0] font-medium transition-colors"
               >
-                {isSignUp ? 'Sign In' : 'Sign Up'}
+                {isSignUp ? 'Sign in' : 'Create account'}
               </button>
             </div>
           </div>
         </div>
 
-        <p className="text-center text-xs text-neutral-500 mt-6">
+        <p className="text-center text-xs text-slate mt-6">
           Meta Global AI Hackathon 2026
         </p>
       </div>

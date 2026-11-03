@@ -8,33 +8,69 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#f5f3ff',
-          100: '#ede9fe',
-          500: '#a855f7',
-          600: '#9333ea',
-          700: '#7e22ce',
-        },
+        // ROPI PRECISION MONOCHROME SYSTEM
+        paper: '#FFFFFF',
+        mist: '#F7F8FA',
+        ink: '#111318',
+        slate: '#666B75',
+        line: '#E4E7EC',
+        ultramarine: '#3452E8',
+        
+        // Semantic colors (used sparingly)
         success: {
-          50: '#f0fdf4',
-          500: '#22c55e',
-          700: '#15803d',
+          DEFAULT: '#10B981',
+          light: '#D1FAE5',
         },
         warning: {
-          50: '#fffbeb',
-          500: '#f59e0b',
-          700: '#b45309',
+          DEFAULT: '#F59E0B',
+          light: '#FEF3C7',
         },
         error: {
-          50: '#fef2f2',
-          500: '#ef4444',
-          700: '#b91c1c',
+          DEFAULT: '#EF4444',
+          light: '#FEE2E2',
         },
       },
+      fontFamily: {
+        sans: ['Geist Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['Geist Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+      },
+      fontSize: {
+        // Precise typography scale
+        'xs': ['12px', { lineHeight: '18px', letterSpacing: '0.02em' }],
+        'sm': ['13px', { lineHeight: '18px', letterSpacing: '0.01em' }],
+        'base': ['14px', { lineHeight: '22px' }],
+        'md': ['15px', { lineHeight: '22px' }],
+        'lg': ['16px', { lineHeight: '25px' }],
+        'xl': ['21px', { lineHeight: '28px', letterSpacing: '-0.01em' }],
+        '2xl': ['27px', { lineHeight: '30px', letterSpacing: '-0.02em' }],
+        '3xl': ['38px', { lineHeight: '44px', letterSpacing: '-0.02em' }],
+      },
+      fontWeight: {
+        normal: '400',
+        medium: '500',
+        semibold: '550',
+        bold: '600',
+      },
       borderRadius: {
-        lg: '0.5rem',
-        md: '0.375rem',
-        sm: '0.25rem',
+        sm: '8px',
+        md: '10px',
+        lg: '12px',
+      },
+      spacing: {
+        // 8px rhythm
+        '1': '8px',
+        '2': '16px',
+        '3': '24px',
+        '4': '32px',
+        '5': '40px',
+        '6': '48px',
+        '8': '64px',
+        '10': '80px',
+      },
+      boxShadow: {
+        'subtle': '0 1px 2px rgba(17, 19, 24, 0.04)',
+        'card': '0 2px 8px rgba(17, 19, 24, 0.06)',
+        'elevated': '0 8px 24px rgba(17, 19, 24, 0.08)',
       },
     },
   },
