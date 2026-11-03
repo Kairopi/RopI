@@ -60,13 +60,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithMagicLink = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
+    console.log('Attempting magic link for:', email)
+    const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: window.location.origin,
       },
     })
-    if (error) throw error
+    console.log('Magic link response:', { data, error })
+    if (error) {
+      console.error('Magic link error:', error)
+      throw new Error(error.message || 'Failed to send magic link')
+    }
   }
 
   return (
