@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
+import { Sparkles, TrendingUp, Zap, Target, Clock, ArrowRight } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 
 export default function Dashboard() {
@@ -12,7 +13,7 @@ export default function Dashboard() {
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-ink mb-1 sm:mb-2 tracking-tight">
           Dashboard
         </h1>
-        <p className="text-sm sm:text-base text-slate mb-6 sm:mb-8">
+        <p className="text-sm sm:text-base text-secondary mb-6 sm:mb-8">
           Welcome to ROPI - Your AI Life Operating System
         </p>
 
@@ -20,43 +21,69 @@ export default function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 sm:mb-8 bg-gradient-to-r from-accent to-purple-600 rounded-xl p-6 sm:p-8 text-white cursor-pointer hover:shadow-2xl transition-shadow"
+          className="mb-6 sm:mb-8 bg-gradient-to-br from-accent via-blue-600 to-purple-600 rounded-3xl p-8 text-white cursor-pointer hover:shadow-2xl transition-all overflow-hidden relative group"
           onClick={() => navigate('/schedule')}
         >
-          <div className="flex items-center gap-4 mb-3">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-              <span className="text-2xl sm:text-3xl">🔄</span>
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold mb-1">LifeShift</h2>
-              <p className="text-sm sm:text-base opacity-90">Transform chaos into optimized flow</p>
-            </div>
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl" />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-xs opacity-80">Productivity</div>
-              <div className="text-xl sm:text-2xl font-bold">+47%</div>
+
+          <div className="relative z-10">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Sparkles className="w-7 h-7" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-1 tracking-tight">LifeShift</h2>
+                <p className="text-sm text-white/90">Transform chaos into optimized flow</p>
+              </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-xs opacity-80">Energy Match</div>
-              <div className="text-xl sm:text-2xl font-bold">91%</div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span className="text-xs font-semibold uppercase tracking-wide opacity-80">Productivity</span>
+                </div>
+                <div className="text-3xl font-bold tabular-nums">+47%</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Zap className="w-3.5 h-3.5" />
+                  <span className="text-xs font-semibold uppercase tracking-wide opacity-80">Energy</span>
+                </div>
+                <div className="text-3xl font-bold tabular-nums">91%</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Target className="w-3.5 h-3.5" />
+                  <span className="text-xs font-semibold uppercase tracking-wide opacity-80">Balance</span>
+                </div>
+                <div className="text-3xl font-bold tabular-nums">+29%</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span className="text-xs font-semibold uppercase tracking-wide opacity-80">Focus</span>
+                </div>
+                <div className="text-3xl font-bold tabular-nums">+90<span className="text-lg">m</span></div>
+              </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-xs opacity-80">Balance</div>
-              <div className="text-xl sm:text-2xl font-bold">+29%</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-              <div className="text-xs opacity-80">Focus Time</div>
-              <div className="text-xl sm:text-2xl font-bold">+90m</div>
-            </div>
+
+            {/* CTA */}
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className="flex items-center gap-2 bg-white text-accent px-6 py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+            >
+              Optimize My Schedule
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </motion.button>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-white text-accent px-6 py-3 rounded-lg font-semibold text-sm sm:text-base hover:bg-gray-100 transition-colors w-full sm:w-auto"
-          >
-            Optimize My Schedule Now →
-          </motion.button>
         </motion.div>
 
         {/* Cards Grid - Responsive columns and gaps */}

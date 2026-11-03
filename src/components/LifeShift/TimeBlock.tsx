@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { Clock, Zap, GripVertical } from 'lucide-react';
 import type { TimeBlock as TimeBlockType } from '../../types/lifeshift';
 
 interface TimeBlockProps {
@@ -9,19 +10,55 @@ interface TimeBlockProps {
   onClick?: () => void;
 }
 
-const categoryColors = {
-  work: 'bg-accent text-white',
-  learn: 'bg-purple-500 text-white',
-  health: 'bg-green-500 text-white',
-  social: 'bg-pink-500 text-white',
-  rest: 'bg-slate-400 text-white',
-  other: 'bg-secondary text-white',
+const categoryStyles = {
+  work: {
+    bg: 'bg-accent',
+    text: 'text-white',
+    border: 'border-accent/20',
+    icon: '💼'
+  },
+  learn: {
+    bg: 'bg-purple-600',
+    text: 'text-white',
+    border: 'border-purple-600/20',
+    icon: '📚'
+  },
+  health: {
+    bg: 'bg-emerald-600',
+    text: 'text-white',
+    border: 'border-emerald-600/20',
+    icon: '💪'
+  },
+  social: {
+    bg: 'bg-pink-600',
+    text: 'text-white',
+    border: 'border-pink-600/20',
+    icon: '👥'
+  },
+  rest: {
+    bg: 'bg-slate-500',
+    text: 'text-white',
+    border: 'border-slate-500/20',
+    icon: '☕'
+  },
+  other: {
+    bg: 'bg-gray-600',
+    text: 'text-white',
+    border: 'border-gray-600/20',
+    icon: '📌'
+  },
 };
 
-const priorityBorders = {
-  high: 'border-l-4 border-l-red-500',
-  medium: 'border-l-4 border-l-yellow-500',
-  low: 'border-l-4 border-l-green-500',
+const priorityIndicators = {
+  high: { color: 'bg-red-500', size: 'w-1 h-full' },
+  medium: { color: 'bg-amber-400', size: 'w-1 h-full' },
+  low: { color: 'bg-emerald-400', size: 'w-1 h-full' },
+};
+
+const energyConfig = {
+  peak: { dots: 3, color: 'text-amber-400' },
+  moderate: { dots: 2, color: 'text-blue-400' },
+  low: { dots: 1, color: 'text-slate-400' },
 };
 
 export function TimeBlock({ 
@@ -31,68 +68,95 @@ export function TimeBlock({
   onDragEnd,
   onClick 
 }: TimeBlockProps) {
-  const heightInPixels = (block.duration / 60) * 80; // 80px per hour
+  const style = categoryStyles[block.category];
+  const priority = priorityIndicators[block.priority];
+  const energy = energyConfig[block.energy];
+  
+  const heightInPixels = Math.max((block.duration / 60) * 72, 72); // Min 72px
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      whileHover={{ scale: 1.01, y: -2 }}
+      whileTap={{ scale: 0.99 }}
       drag="y"
       dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={0.1}
+      dragElastic={0.05}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
       className={`
-        relative rounded-lg p-3 sm:p-4 cursor-pointer
-        ${categoryColors[block.category]}
-        ${priorityBorders[block.priority]}
-        ${isOptimized ? 'ring-2 ring-green-400 ring-offset-2' : ''}
+        group relative rounded-xl overflow-hidden cursor-grab active:cursor-grabbing
+        ${style.bg} ${style.text}
         shadow-sm hover:shadow-md transition-shadow
-        min-h-[60px] sm:min-h-[80px]
-        touch-manipulation
+        border border-white/10
+        ${isOptimized ? 'ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-canvas' : ''}
       `}
       style={{ 
-        minHeight: `${Math.max(heightInPixels, 60)}px`,
+        minHeight: `${heightInPixels}px`,
       }}
     >
-      {/* Time indicator */}
-      <div className="text-xs opacity-90 font-medium mb-1">
-        {block.startTime} - {block.endTime}
-      </div>
+      {/* Priority indicator bar */}
+      <div className={`absolute left-0 top-0 ${priority.size} ${priority.color}`} />
 
-      {/* Title */}
-      <div className="font-semibold text-sm sm:text-base line-clamp-2">
-        {block.title}
-      </div>
+      {/* Content wrapper */}
+      <div className="relative p-4 h-full flex flex-col">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg flex-shrink-0">{style.icon}</span>
+            <div className="min-w-0">
+              <div className="font-semibold text-[15px] leading-tight truncate">
+                {block.title}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1 opacity-90">
+                <Clock className="w-3 h-3" />
+                <span className="text-xs font-medium">
+                  {block.startTime} - {block.endTime}
+                </span>
+              </div>
+            </div>
+          </div>
 
-      {/* Duration badge */}
-      <div className="absolute top-2 right-2 text-xs bg-black/20 px-2 py-0.5 rounded-full">
-        {Math.round(block.duration)}m
-      </div>
+          {/* Duration badge */}
+          <div className="flex-shrink-0 px-2 py-0.5 bg-black/15 backdrop-blur-sm rounded-md text-xs font-semibold">
+            {Math.round(block.duration)}m
+          </div>
+        </div>
 
-      {/* Energy indicator */}
-      <div className="flex items-center gap-1 mt-2 text-xs">
-        <span className="opacity-75">Energy:</span>
-        <div className="flex gap-0.5">
-          {block.energy === 'peak' && '⚡⚡⚡'}
-          {block.energy === 'moderate' && '⚡⚡'}
-          {block.energy === 'low' && '⚡'}
+        {/* Footer row */}
+        <div className="flex items-center justify-between mt-auto pt-2">
+          {/* Energy indicator */}
+          <div className="flex items-center gap-1">
+            <Zap className={`w-3.5 h-3.5 ${energy.color}`} />
+            <div className="flex gap-0.5">
+              {Array.from({ length: energy.dots }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-1 h-1 rounded-full ${energy.color.replace('text-', 'bg-')}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Drag handle */}
+          <GripVertical className="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
         </div>
       </div>
 
       {/* Optimization badge */}
       {isOptimized && (
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full shadow-lg"
+          initial={{ scale: 0, rotate: -12 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', stiffness: 200 }}
+          className="absolute -top-2 -right-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-lg flex items-center gap-1"
         >
-          ✓ Optimized
+          <Zap className="w-3 h-3" />
+          Optimized
         </motion.div>
       )}
     </motion.div>
