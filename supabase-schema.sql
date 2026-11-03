@@ -3,6 +3,12 @@
 -- 24 Tables for Complete System
 
 -- ============================================
+-- ENABLE EXTENSIONS
+-- ============================================
+-- Note: pgvector extension is optional, comment out if not available
+-- CREATE EXTENSION IF NOT EXISTS vector;
+
+-- ============================================
 -- USER CONTEXT
 -- ============================================
 CREATE TABLE IF NOT EXISTS user_context (
@@ -221,7 +227,7 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
   source TEXT, -- 'uploaded', 'web', 'manual'
   file_url TEXT,
   tags TEXT[],
-  embedding VECTOR(1536), -- for semantic search (optional)
+  -- embedding VECTOR(1536), -- for semantic search (optional, requires pgvector extension)
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
