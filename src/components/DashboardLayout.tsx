@@ -26,17 +26,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-mist">
       {/* Desktop Sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-neutral-200 bg-white px-6">
-          <div className="flex h-16 shrink-0 items-center">
-            <h1 className="text-2xl font-bold text-primary-600">ROPI</h1>
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-line bg-paper px-4 sm:px-6">
+          {/* Wordmark */}
+          <div className="flex h-14 sm:h-16 shrink-0 items-center">
+            <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">ropi.</h1>
           </div>
+          
           <nav className="flex flex-1 flex-col">
-            <ul role="list" className="flex flex-1 flex-col gap-y-7">
+            <ul role="list" className="flex flex-1 flex-col gap-y-6">
               <li>
-                <ul role="list" className="-mx-2 space-y-1">
+                <ul role="list" className="-mx-2 space-y-0.5">
                   {navigation.map((item) => {
                     const isActive = location.pathname === item.href
                     return (
@@ -44,14 +46,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Link
                           to={item.href}
                           className={`
-                            group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 transition-colors
+                            group flex items-center gap-x-3 rounded-md px-2 py-2 text-sm font-medium transition-all touch-manipulation min-h-[44px]
                             ${isActive
-                              ? 'bg-primary-50 text-primary-600'
-                              : 'text-neutral-700 hover:text-primary-600 hover:bg-neutral-50'
+                              ? 'bg-ultramarine/10 text-ultramarine'
+                              : 'text-slate hover:text-ink hover:bg-mist'
                             }
                           `}
                         >
-                          <item.icon className="h-6 w-6 shrink-0" />
+                          <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.5} />
                           {item.name}
                         </Link>
                       </li>
@@ -59,17 +61,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   })}
                 </ul>
               </li>
+              
+              {/* User Section */}
               <li className="mt-auto">
-                <div className="px-2 py-3 border-t border-neutral-200">
-                  <p className="text-xs text-neutral-500 mb-1">Signed in as</p>
-                  <p className="text-sm font-medium text-neutral-900 mb-3 truncate">
+                <div className="px-2 py-3 border-t border-line">
+                  <p className="text-xs text-slate mb-0.5">Signed in as</p>
+                  <p className="text-sm font-medium text-ink mb-3 truncate">
                     {user?.email}
                   </p>
                   <button
                     onClick={() => signOut()}
-                    className="flex w-full items-center gap-x-2 rounded-md px-2 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-error-600 transition-colors"
+                    className="flex w-full items-center gap-x-2 rounded-md px-2 py-2 text-sm font-medium text-slate hover:bg-mist hover:text-ink transition-all touch-manipulation min-h-[44px]"
                   >
-                    <LogOut className="h-5 w-5" />
+                    <LogOut className="h-5 w-5" strokeWidth={1.5} />
                     Sign Out
                   </button>
                 </div>
@@ -81,35 +85,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Mobile Header */}
       <div className="lg:hidden">
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-neutral-200 bg-white px-4 shadow-sm">
+        <div className="sticky top-0 z-40 flex h-14 sm:h-16 shrink-0 items-center gap-x-3 sm:gap-x-4 border-b border-line bg-paper px-3 sm:px-4 shadow-sm">
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-neutral-700 lg:hidden"
+            className="p-2 text-slate hover:text-ink transition-colors touch-manipulation"
             onClick={() => setMobileMenuOpen(true)}
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
           </button>
-          <h1 className="text-xl font-bold text-primary-600">ROPI</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-ink tracking-tight">ropi.</h1>
         </div>
       </div>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden">
-          <div className="fixed inset-0 z-50 bg-neutral-900/80" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white">
-            <div className="flex h-16 items-center justify-between px-6 border-b border-neutral-200">
-              <h1 className="text-xl font-bold text-primary-600">ROPI</h1>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 z-40 bg-ink/60 backdrop-blur-sm" 
+            onClick={() => setMobileMenuOpen(false)} 
+          />
+          
+          {/* Sidebar */}
+          <div className="fixed inset-y-0 left-0 z-50 w-64 sm:w-72 bg-paper border-r border-line">
+            {/* Header */}
+            <div className="flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 border-b border-line">
+              <h1 className="text-lg sm:text-xl font-bold text-ink tracking-tight">ropi.</h1>
               <button
                 type="button"
-                className="-m-2.5 p-2.5 text-neutral-700"
+                className="p-2 text-slate hover:text-ink transition-colors touch-manipulation"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" strokeWidth={1.5} />
               </button>
             </div>
-            <nav className="px-6 py-4">
-              <ul role="list" className="space-y-1">
+            
+            {/* Navigation */}
+            <nav className="px-4 sm:px-6 py-4">
+              <ul role="list" className="space-y-0.5">
                 {navigation.map((item) => {
                   const isActive = location.pathname === item.href
                   return (
@@ -118,30 +131,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         to={item.href}
                         onClick={() => setMobileMenuOpen(false)}
                         className={`
-                          group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6
+                          group flex items-center gap-x-3 rounded-md px-2 py-2.5 text-sm font-medium transition-all touch-manipulation min-h-[44px]
                           ${isActive
-                            ? 'bg-primary-50 text-primary-600'
-                            : 'text-neutral-700 hover:text-primary-600 hover:bg-neutral-50'
+                            ? 'bg-ultramarine/10 text-ultramarine'
+                            : 'text-slate hover:text-ink hover:bg-mist'
                           }
                         `}
                       >
-                        <item.icon className="h-6 w-6 shrink-0" />
+                        <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.5} />
                         {item.name}
                       </Link>
                     </li>
                   )
                 })}
               </ul>
-              <div className="mt-6 pt-6 border-t border-neutral-200">
-                <p className="text-xs text-neutral-500 mb-1">Signed in as</p>
-                <p className="text-sm font-medium text-neutral-900 mb-3 truncate">
+              
+              {/* User Section */}
+              <div className="mt-6 pt-6 border-t border-line">
+                <p className="text-xs text-slate mb-0.5">Signed in as</p>
+                <p className="text-sm font-medium text-ink mb-3 truncate">
                   {user?.email}
                 </p>
                 <button
-                  onClick={() => signOut()}
-                  className="flex w-full items-center gap-x-2 rounded-md px-2 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-error-600"
+                  onClick={() => {
+                    signOut()
+                    setMobileMenuOpen(false)
+                  }}
+                  className="flex w-full items-center gap-x-2 rounded-md px-2 py-2.5 text-sm font-medium text-slate hover:bg-mist hover:text-ink transition-all touch-manipulation min-h-[44px]"
                 >
-                  <LogOut className="h-5 w-5" />
+                  <LogOut className="h-5 w-5" strokeWidth={1.5} />
                   Sign Out
                 </button>
               </div>
@@ -152,7 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Content */}
       <main className="lg:pl-64">
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <div className="px-3 py-4 sm:px-4 sm:py-6 lg:px-6 lg:py-8">
           {children}
         </div>
       </main>
