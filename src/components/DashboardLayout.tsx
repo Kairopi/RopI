@@ -7,6 +7,7 @@ import {
   GraduationCap,
   Calendar,
   BookOpen,
+  CheckSquare,
   LogOut,
   Menu,
   X
@@ -19,6 +20,7 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Learn', href: '/learn', icon: GraduationCap },
   { name: 'Schedule', href: '/schedule', icon: Calendar },

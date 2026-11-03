@@ -8,6 +8,7 @@ import JobBoard from './pages/JobBoard'
 import LearningHub from './pages/LearningHub'
 import LifeShift from './pages/LifeShift'
 import KnowledgeBase from './pages/KnowledgeBase'
+import TaskBoard from './pages/TaskBoard'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -24,6 +25,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute>
+                  <TaskBoard />
                 </ProtectedRoute>
               }
             />
