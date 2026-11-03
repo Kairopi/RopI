@@ -1,6 +1,10 @@
+import { useNavigate } from 'react-router-dom'
+import { motion } from 'motion/react'
 import DashboardLayout from '../components/DashboardLayout'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
+
   return (
     <DashboardLayout>
       <div>
@@ -11,6 +15,49 @@ export default function Dashboard() {
         <p className="text-sm sm:text-base text-slate mb-6 sm:mb-8">
           Welcome to ROPI - Your AI Life Operating System
         </p>
+
+        {/* LifeShift WOW Banner - Featured */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 sm:mb-8 bg-gradient-to-r from-accent to-purple-600 rounded-xl p-6 sm:p-8 text-white cursor-pointer hover:shadow-2xl transition-shadow"
+          onClick={() => navigate('/schedule')}
+        >
+          <div className="flex items-center gap-4 mb-3">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <span className="text-2xl sm:text-3xl">🔄</span>
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold mb-1">LifeShift</h2>
+              <p className="text-sm sm:text-base opacity-90">Transform chaos into optimized flow</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+              <div className="text-xs opacity-80">Productivity</div>
+              <div className="text-xl sm:text-2xl font-bold">+47%</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+              <div className="text-xs opacity-80">Energy Match</div>
+              <div className="text-xl sm:text-2xl font-bold">91%</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+              <div className="text-xs opacity-80">Balance</div>
+              <div className="text-xl sm:text-2xl font-bold">+29%</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+              <div className="text-xs opacity-80">Focus Time</div>
+              <div className="text-xl sm:text-2xl font-bold">+90m</div>
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-white text-accent px-6 py-3 rounded-lg font-semibold text-sm sm:text-base hover:bg-gray-100 transition-colors w-full sm:w-auto"
+          >
+            Optimize My Schedule Now →
+          </motion.button>
+        </motion.div>
 
         {/* Cards Grid - Responsive columns and gaps */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
