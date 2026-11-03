@@ -1,19 +1,17 @@
-import DashboardLayout from '../components/DashboardLayout'
+import DashboardLayout from '../components/DashboardLayout';
 
 export default function JobBoard() {
   return (
     <DashboardLayout>
-      <div>
-        <h1 className="text-4xl font-bold text-neutral-900 mb-2">
-          Job Board
-        </h1>
-        <p className="text-neutral-600 mb-8">
-          Discover jobs matched to your goals
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Jobs</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          AI-matched opportunities
         </p>
-        <div className="bg-white p-8 rounded-lg shadow-md border border-neutral-200 text-center">
-          <p className="text-neutral-500">Coming soon: Job discovery and application system</p>
-        </div>
+      </div>
+      <div className="text-sm text-muted-foreground">
+        Job board coming soon...
       </div>
     </DashboardLayout>
-  )
+  );
 }
