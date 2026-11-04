@@ -21,6 +21,7 @@ import {
   Mic,
   PanelLeft,
   IdCard,
+  Video,
 } from '@/components/icons';
 
 interface DashboardLayoutProps {
@@ -45,6 +46,7 @@ const groups: { label: string | null; items: NavItem[] }[] = [
     items: [
       { name: 'Learn', href: '/learning', icon: GraduationCap, match: ['/learn', '/study-guide', '/quiz', '/voice-quiz', '/reviews'] },
       { name: 'Jobs', href: '/jobs', icon: Briefcase, match: ['/jobs'] },
+      { name: 'Practice', href: '/interview', icon: Video, match: ['/interview'] },
       { name: 'CV', href: '/cv', icon: IdCard, match: ['/cv'] },
     ],
   },
@@ -209,22 +211,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Account */}
           {collapsed ? (
             <div className="mt-6 flex flex-col items-center gap-2">
-              <span title={displayName} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+              <button onClick={() => navigate('/profile')} title="Profile and settings" aria-label="Profile and settings" className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
                 {initials(displayName)}
-              </span>
+              </button>
               <button onClick={signOut} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Sign out" aria-label="Sign out">
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <div className="mt-6 flex items-center gap-2.5 rounded-lg px-2 py-2">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
-                {initials(displayName)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium leading-tight">{displayName}</p>
-                <p className="text-[11px] text-muted-foreground leading-tight">Private account</p>
-              </div>
+            <div className={cn('mt-6 flex items-center gap-2.5 rounded-lg px-2 py-2', location.pathname === '/profile' && 'bg-card border')}>
+              <button onClick={() => navigate('/profile')} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-label="Profile and settings">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+                  {initials(displayName)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-medium leading-tight">{displayName}</span>
+                  <span className="block text-[11px] text-muted-foreground leading-tight">Profile and settings</span>
+                </span>
+              </button>
               <button
                 onClick={signOut}
                 className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -260,6 +264,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {mobileMenuOpen && (
         <div className="fixed inset-0 top-14 z-30 overflow-y-auto bg-background px-3 pt-3 lg:hidden">
           <NavList onNavigate={() => setMobileMenuOpen(false)} />
+          <button onClick={() => navigate('/profile')} className="mt-4 flex w-full items-center gap-2.5 rounded-lg border-t px-2.5 pt-4 text-[13.5px] font-medium text-muted-foreground">
+            Profile and settings
+          </button>
           <button
             onClick={() => {
               signOut();

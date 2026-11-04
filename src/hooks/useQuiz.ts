@@ -39,7 +39,8 @@ export function useQuiz(quizId: string | undefined, topic: string | null, focus:
       const j = topicQuizJob(topic, focus ?? undefined);
       const sync = () => {
         if (cancelled) return;
-        if (j.quiz && j.quiz.questions.length >= 2 && (progressive || j.done)) {
+        // The first question is enough to start; the rest stream in while you answer it
+        if (j.quiz && j.quiz.questions.length >= 1 && (progressive || j.done)) {
           setQuiz(j.done ? { ...j.quiz, expectedCount: undefined } : j.quiz);
           setLoading(false);
         } else if (j.done) {

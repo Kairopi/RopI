@@ -119,9 +119,6 @@ export default function Login() {
             </div>
           )}
 
-          <p className="mt-10 text-[12px] leading-relaxed text-muted-foreground">
-            Powered by Meta Muse.
-          </p>
         </div>
       </section>
     </div>

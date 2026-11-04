@@ -82,7 +82,7 @@ function parseList(text: string): Partial<FoundResource>[] {
 }
 
 export async function findFreeResources(subtopic: string, folder: string, opts: { exclude?: string[]; timeoutMs?: number } = {}): Promise<FoundResource[]> {
-  if (!KEY) throw new Error('Meta Muse is not set up, so Ropi can’t search.');
+  if (!KEY) throw new Error('Ropi’s assistant isn’t set up, so it can’t search.');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 50000);
   const prompt = `Search the web for the best FREE resources to learn "${subtopic}"${folder && folder.toLowerCase() !== subtopic.toLowerCase() ? ` (part of ${folder})` : ''} for a busy adult who studies in short gaps.
@@ -107,7 +107,7 @@ minutes = about how long it takes to watch, listen or read; null if unknown.`;
       }),
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(`Muse search error ${res.status}: ${data?.error?.message ?? res.statusText}`);
+    if (!res.ok) throw new Error(`The web search had a problem (${res.status}): ${data?.error?.message ?? res.statusText}`);
 
     // Everything the search actually returned: the only links Ropi will show
     const seen: { url: string; title: string }[] = [];

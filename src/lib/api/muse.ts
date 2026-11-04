@@ -40,7 +40,7 @@ export interface MuseCallOptions {
  */
 export async function callMuse(prompt: string, options: MuseCallOptions = {}): Promise<string> {
   if (!MUSE_API_KEY) {
-    throw new Error('Meta Muse API key not configured. Please set VITE_MUSE_API_KEY in .env');
+    throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
   }
 
   const {
@@ -83,7 +83,7 @@ export async function callMuse(prompt: string, options: MuseCallOptions = {}): P
 
     if (!response.ok) {
       const message = data?.error?.message || data?.message || response.statusText;
-      throw new Error(`Muse API error ${response.status}: ${message}`);
+      throw new Error(`Ropi’s assistant had a problem (${response.status}): ${message}`);
     }
 
     const choice = data?.choices?.[0];
@@ -100,12 +100,116 @@ export async function callMuse(prompt: string, options: MuseCallOptions = {}): P
     return content;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error(`Muse API timed out after ${Math.round(timeoutMs / 1000)}s`);
+      throw new Error(`Ropi’s assistant took too long (over ${Math.round(timeoutMs / 1000)} s). Try again.`);
     }
     throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Same call, streamed: `onText` gets the answer so far as it's written.
+ * A 2-question quiz's first question is complete ~4.2 s in, versus ~6 s for
+ * the whole answer (measured 2026-11-04), so the page can show it sooner.
+ */
+export async function callMuseStream(prompt: string, onText: (soFar: string) => void, options: MuseCallOptions = {}): Promise<string> {
+  if (!MUSE_API_KEY) throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
+  const { model = MUSE_MODELS.fast, reasoningEffort = 'minimal', json = false, maxTokens = 4000, timeoutMs = 60000, temperature } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${MUSE_API_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MUSE_API_KEY}` },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: maxTokens,
+        reasoning_effort: reasoningEffort,
+        stream: true,
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(json ? { response_format: { type: 'json_object' } } : {}),
+      }),
+    });
+    if (!response.ok || !response.body) {
+      const data = await response.json().catch(() => null);
+      throw new Error(`Ropi’s assistant had a problem (${response.status}): ${data?.error?.message ?? response.statusText}`);
+    }
+    const reader = response.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let text = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() ?? '';
+      let changed = false;
+      for (const l of lines) {
+        if (!l.startsWith('data:')) continue;
+        const d = l.slice(5).trim();
+        if (!d || d === '[DONE]') continue;
+        try {
+          const c = JSON.parse(d).choices?.[0]?.delta?.content;
+          if (c) {
+            text += c;
+            changed = true;
+          }
+        } catch {
+          // a keep-alive or partial line
+        }
+      }
+      if (changed) onText(text);
+    }
+    if (!text) throw new Error('Ropi got an empty answer. Try again.');
+    return text;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error(`Ropi’s assistant took too long (over ${Math.round(timeoutMs / 1000)} s). Try again.`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Complete objects in a JSON array that's still being written: `"questions": [ {...}, {...}, {` -> the first two */
+export function completeItems(text: string, key: string): unknown[] {
+  const at = text.indexOf(`"${key}"`);
+  if (at < 0) return [];
+  const open = text.indexOf('[', at);
+  if (open < 0) return [];
+  const out: unknown[] = [];
+  let depth = 0;
+  let start = -1;
+  let inStr = false;
+  let esc = false;
+  for (let i = open + 1; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        try {
+          out.push(JSON.parse(text.slice(start, i + 1)));
+        } catch {
+          // not valid yet
+        }
+        start = -1;
+      }
+    } else if (ch === ']' && depth === 0) break;
+  }
+  return out;
 }
 
 interface MuseResponse<T> {
@@ -259,7 +363,7 @@ Make questions practical and interview-relevant. Avoid trivia.
     // Extract JSON from response
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      throw new Error('Failed to parse quiz questions from Muse response');
+      throw new Error('Failed to parse quiz questions from the response');
     }
     
     const questions: MuseQuizQuestion[] = JSON.parse(jsonMatch[0]);
@@ -364,7 +468,7 @@ export async function getMuseStatus(): Promise<{
     return {
       configured: false,
       connected: false,
-      error: 'Meta Muse API key not configured',
+      error: 'Ropi’s assistant isn’t set up',
     };
   }
 
@@ -374,7 +478,7 @@ export async function getMuseStatus(): Promise<{
       headers: { Authorization: `Bearer ${MUSE_API_KEY}` },
     });
     if (!response.ok) {
-      throw new Error(`Muse API error ${response.status}`);
+      throw new Error(`Ropi’s assistant had a problem (${response.status})`);
     }
     return {
       configured: true,
@@ -399,7 +503,7 @@ export async function callMuseWithWebSearch(
   input: string,
   options: { model?: string; timeoutMs?: number; contextSize?: 'low' | 'medium' | 'high' } = {}
 ): Promise<{ text: string; citations: { title: string; url: string }[]; searched: boolean }> {
-  if (!MUSE_API_KEY) throw new Error('Meta Muse API key not configured. Please set VITE_MUSE_API_KEY in .env');
+  if (!MUSE_API_KEY) throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 45000);
   try {
@@ -417,7 +521,7 @@ export async function callMuseWithWebSearch(
       }),
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(`Muse API error ${res.status}: ${data?.error?.message ?? res.statusText}`);
+    if (!res.ok) throw new Error(`Ropi’s assistant had a problem (${res.status}): ${data?.error?.message ?? res.statusText}`);
 
     let searched = false;
     const texts: string[] = [];
@@ -437,7 +541,7 @@ export async function callMuseWithWebSearch(
     }
     // The model sometimes narrates first ("I'll search for..."): keep the last block, the answer
     const text = (texts.filter((t) => t.trim()).pop() ?? '').trim();
-    if (!text) throw new Error('Muse returned an empty answer.');
+    if (!text) throw new Error('No answer came back. Try again.');
     // Cited sources first; if none were cited inline, the pages the search actually read
     const sources = citations.size ? citations : hits;
     return { text, citations: [...sources].map(([url, title]) => ({ url, title })), searched };

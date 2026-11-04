@@ -105,7 +105,7 @@ export default function Subtopic() {
   const acc = s.concept ? Math.round(s.concept.accuracy) : null;
 
   const summarize = async () => {
-    if (!isMuseConfigured()) throw new Error('Meta Muse is not set up, so Ropi can’t write this.');
+    if (!isMuseConfigured()) throw new Error('Ropi’s assistant isn’t set up, so it can’t write this.');
     const out = await callMuse(
       `Write a short study note: "What I know so far about ${s.name}" (part of ${folder.name}).
 Use what this learner has, nothing else beyond a standard textbook explanation:

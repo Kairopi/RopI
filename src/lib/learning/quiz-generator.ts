@@ -143,7 +143,7 @@ export async function generateQuizFromDocuments(
   const { generateQuizWithMuse, isMuseConfigured } = await import('@/lib/api/muse');
   
   if (!isMuseConfigured()) {
-    throw new Error('Meta Muse API not configured. Please set VITE_MUSE_API_KEY in .env');
+    throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
   }
   
   try {
@@ -207,7 +207,7 @@ export async function generateQuizFromText(
   const { generateQuizFromTextWithMuse, isMuseConfigured } = await import('@/lib/api/muse');
   
   if (!isMuseConfigured()) {
-    throw new Error('Meta Muse API not configured. Please set VITE_MUSE_API_KEY in .env');
+    throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
   }
   
   try {

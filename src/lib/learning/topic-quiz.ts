@@ -13,7 +13,7 @@
  * by the time you press Quiz me.
  */
 
-import { callMuse, MUSE_MODELS } from '@/lib/api/muse';
+import { callMuse, callMuseStream, completeItems, MUSE_MODELS } from '@/lib/api/muse';
 import type { Quiz, QuizQuestion } from './quiz-generator';
 
 const RULES = `Rules:
@@ -62,14 +62,33 @@ function valid(raw: string, concept: string, start: number): QuizQuestion[] {
     }));
 }
 
-const write = (topic: string, concept: string, ask: string, start: number) =>
-  callMuse(`Write a multiple-choice quiz for a busy professional learning "${topic}".\n${ask}\n\n${RULES}\n\n${SHAPE}`, {
+/**
+ * One part of the quiz, streamed: each question is handed over (`onEach`) the
+ * moment its JSON is complete, so the first one shows ~2 s sooner. Resolves
+ * with the questions `onEach` hasn't seen yet (normally none).
+ */
+const write = (topic: string, concept: string, ask: string, start: number, onEach?: (q: QuizQuestion[]) => void) => {
+  let sent = 0;
+  const flush = (soFar: string) => {
+    const items = completeItems(soFar, 'questions');
+    if (items.length <= sent) return;
+    const named = concept || soFar.match(/"concept"\s*:\s*"([^"]+)"/)?.[1] || '';
+    const fresh = valid(JSON.stringify({ concept: named, questions: items.slice(sent) }), named, start + sent);
+    sent = items.length;
+    if (fresh.length) onEach?.(fresh);
+  };
+  return callMuseStream(`Write a multiple-choice quiz for a busy professional learning "${topic}".\n${ask}\n\n${RULES}\n\n${SHAPE}`, onEach ? flush : () => undefined, {
     model: MUSE_MODELS.fast,
     reasoningEffort: 'minimal',
     json: true,
     maxTokens: 2500,
     timeoutMs: 45000,
-  }).then((raw) => valid(raw, concept, start));
+  }).then((raw) => {
+    if (!onEach) return valid(raw, concept, start);
+    const all = valid(raw, concept, start);
+    return all.slice(sent);
+  });
+};
 
 async function concepts(topic: string): Promise<string[]> {
   try {
@@ -137,13 +156,14 @@ function start(topic: string, focus?: string) {
 
   void (async () => {
     try {
+      // Streamed: each question joins the quiz as soon as it's written
       const parts: Promise<QuizQuestion[]>[] = focus
         ? [
-            write(cleanTopic, focus, `All 3 questions test "${focus}": what it is, and how it shows up in a real situation.`, 0),
-            write(cleanTopic, focus, `All 3 questions test "${focus}": a common mistake people make with it, an edge case, and a "which would you do" choice.`, 3),
+            write(cleanTopic, focus, `All 3 questions test "${focus}": what it is, and how it shows up in a real situation.`, 0, add),
+            write(cleanTopic, focus, `All 3 questions test "${focus}": a common mistake people make with it, an edge case, and a "which would you do" choice.`, 3, add),
           ]
-        : // Three angles in parallel, no planning call first: the first two questions arrive after one call
-          ANGLES.map((a, i) => write(cleanTopic, '', `Write exactly 2 questions on one concept: ${a} Name that concept.`, i * 2));
+        : // Three angles in parallel, no planning call first
+          ANGLES.map((a, i) => write(cleanTopic, '', `Write exactly 2 questions on one concept: ${a} Name that concept.`, i * 2, add));
       // Each part lands as soon as it's written; a part that fails just means fewer questions
       await Promise.all(
         parts.map((p) =>
@@ -153,7 +173,7 @@ function start(topic: string, focus?: string) {
           })
         )
       );
-      if (questions.length < 2) throw new Error('Muse didn’t return enough questions. Try again in a moment.');
+      if (questions.length < 2) throw new Error('Not enough questions came back. Try again in a moment.');
       job.expected = questions.length;
       if (job.quiz) job.quiz = { ...job.quiz, expectedCount: questions.length };
     } catch (e) {

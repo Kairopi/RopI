@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Jobs from './pages/Jobs'
 import CV from './pages/CV'
+import Interview from './pages/Interview'
+import Profile from './pages/Profile'
 import JobsKanban from './pages/JobsKanban'
 import LearningHub from './pages/LearningHub'
 import Learning from './pages/Learning'
@@ -62,6 +64,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Jobs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interview"
+              element={
+                <ProtectedRoute>
+                  <Interview />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

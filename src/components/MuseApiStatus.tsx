@@ -44,12 +44,12 @@ export function MuseApiStatus() {
   }, []);
 
   const tone = status.loading
-    ? { dot: 'bg-muted-foreground/40', text: 'Checking Ropi’s AI' }
+    ? { dot: 'bg-muted-foreground/40', text: 'Checking Ropi’s assistant' }
     : !status.configured
-      ? { dot: 'bg-warning', text: 'Ropi’s AI isn’t set up' }
+      ? { dot: 'bg-warning', text: 'Ropi’s assistant isn’t set up' }
       : status.connected
         ? { dot: 'bg-success', text: 'Connected' }
-        : { dot: 'bg-destructive', text: 'Ropi can’t reach its AI right now' };
+        : { dot: 'bg-destructive', text: 'Ropi can’t reach its assistant right now' };
 
   // Only speak up when something is wrong: a green "connected" pill is noise
   if (status.loading || (status.configured && status.connected)) return null;

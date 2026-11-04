@@ -127,7 +127,7 @@ function parseJson(out: string): unknown {
 
 /** An existing resume (any layout, as text) -> CV fields. Copies, never invents. */
 export async function cvFromText(text: string): Promise<CV> {
-  if (!isMuseConfigured()) throw new Error('Meta Muse is not set up, so Ropi can’t read the resume.');
+  if (!isMuseConfigured()) throw new Error('Ropi’s assistant isn’t set up, so it can’t read the resume.');
   const out = await callMuse(
     `Split this resume into fields. Copy the person's own words; do not add, improve or invent anything. Keep dates exactly as written (e.g. "Jan 2022", "Present"). One bullet per achievement or duty line. If a field isn't there, leave it empty.
 headline = their current or target job title, if stated.
@@ -149,7 +149,7 @@ const BANNED = /\b(spearheaded|revolutionized|synergy|leverag\w*|game-changer|wo
 
 /** A 2-3 sentence summary from what's already in the CV (no new facts or numbers) */
 export async function writeSummary(cv: CV): Promise<string> {
-  if (!isMuseConfigured()) throw new Error('Meta Muse is not set up, so Ropi can’t write it.');
+  if (!isMuseConfigured()) throw new Error('Ropi’s assistant isn’t set up, so it can’t write it.');
   const facts = { headline: cv.headline, experience: cv.experience.map((e) => ({ role: e.role, company: e.company, start: e.start, end: e.end, bullets: e.bullets.filter(Boolean) })), education: cv.education, skills: cv.skills, certifications: cv.certifications };
   const out = await callMuse(
     `Write a CV summary: 2 or 3 short sentences, no "I", plain confident words, for someone ${cv.headline ? `going for ${cv.headline} roles` : 'job hunting'}. Use ONLY facts below; no numbers, tools or employers that aren't there. Never use: passionate, results-driven, leverage, spearheaded, synergy, world-class.
@@ -160,7 +160,7 @@ ${JSON.stringify(facts).slice(0, 8000)}`,
   );
   const s = str((parseJson(out) as { summary?: unknown }).summary, 900).replace(BANNED, '').replace(/\s{2,}/g, ' ').trim();
   const have = new Set(JSON.stringify(facts).match(/\d[\d,.%]*/g) ?? []);
-  if (!s) throw new Error('Muse didn’t write a summary. Try again.');
+  if (!s) throw new Error('No summary came back. Try again.');
   if ((s.match(/\d[\d,.%]*/g) ?? []).some((n) => !have.has(n))) throw new Error('That draft had a number that isn’t in your CV, so Ropi dropped it. Try again.');
   return s;
 }
@@ -176,7 +176,7 @@ export interface TailorChange {
  * brings in a number that wasn't in the original is put back.
  */
 export async function tailorCv(cv: CV, job: { title: string; company: string; description: string }): Promise<{ cv: CV; changes: TailorChange[] }> {
-  if (!isMuseConfigured()) throw new Error('Meta Muse is not set up, so Ropi can’t tailor it.');
+  if (!isMuseConfigured()) throw new Error('Ropi’s assistant isn’t set up, so it can’t tailor it.');
   const input = {
     summary: cv.summary,
     skills: cv.skills,

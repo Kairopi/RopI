@@ -75,6 +75,8 @@ import {
   Trophy as PTrophy,
   UploadSimple,
   SidebarSimple,
+  VideoCamera,
+  GearSix,
   DownloadSimple,
   IdentificationCard,
   Globe as PGlobe,
@@ -175,6 +177,8 @@ export const PanelLeft = make(SidebarSimple, 'regular', 'PanelLeft');
 export const Download = make(DownloadSimple, 'regular', 'Download');
 export const IdCard = make(IdentificationCard, 'duotone', 'IdCard');
 export const Globe = make(PGlobe, 'regular', 'Globe');
+export const Video = make(VideoCamera, 'duotone', 'Video');
+export const Settings = make(GearSix, 'duotone', 'Settings');
 export const X = make(PX, 'regular', 'X');
 
 // Spinner

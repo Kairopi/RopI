@@ -31,13 +31,21 @@ export async function generateSourceQuiz(sourceId: string, focusConcept?: string
   if (!chunks.length) throw new Error('This document has no readable text to quiz on.');
 
   const byId = new Map<string, Chunk>(chunks.map((c, i) => [`P${i + 1}`, c]));
-  const passages = [...byId.entries()].map(([id, c]) => `[${id}]${c.page ? ` (page ${c.page})` : ''}\n${c.content}`).join('\n\n');
+  const entries = [...byId.entries()];
+  const fmt = (list: [string, Chunk][]) => list.map(([id, c]) => `[${id}]${c.page ? ` (page ${c.page})` : ''}\n${c.content}`).join('\n\n');
 
-  const prompt = `Write a multiple-choice quiz using ONLY the passages below from the user's own document "${source.title}".
-${focusConcept ? `Every question must test "${focusConcept.slice(0, 120)}".` : 'Cover 3 different concepts from the passages, 2 questions each.'}
+  // Three small calls at once (2 passages, 3 questions each, the best 2 kept) instead of one big
+  // one: ~15 s -> ~6 s. Every quote is still checked against its passage.
+  // A short document: the same passages, three different angles, so the calls don't repeat each other
+  const ANGLES = ['the main facts and definitions it states', 'how the things it describes work or apply in practice', 'the details people are most likely to mix up'];
+  const groups: [string, Chunk][][] = entries.length >= 3 ? [0, 1, 2].map((g) => entries.filter((_, i) => i % 3 === g)) : [entries, entries, entries];
+  const perGroup = 3;
+  let call = 0;
+  const ask = (list: [string, Chunk][]) => `Write a multiple-choice quiz using ONLY the passages below from the user's own document "${source.title}".
+${focusConcept ? `Every question must test "${focusConcept.slice(0, 120)}".` : entries.length >= 3 ? 'Cover the most important concept in these passages.' : `Ask only about ${ANGLES[call++ % 3]}.`}
 
 Rules:
-- 6 questions, 4 options each, exactly one correct.
+- ${perGroup} questions, 4 options each, exactly one correct.
 - The correct answer must be stated in the passage. Do not use outside knowledge.
 - For each question give "passage" (e.g. "P2") and "quote": 8-30 words copied EXACTLY, character for character, from that passage, that prove the correct answer.
 - Wrong options must be plausible.
@@ -48,17 +56,22 @@ Return ONLY JSON:
 {"title": "", "questions": [{"question": "", "options": ["", "", "", ""], "correctAnswerIndex": 0, "concept": "", "difficulty": "easy|medium|hard", "explanation": "", "passage": "P1", "quote": ""}]}
 
 PASSAGES:
-${passages}`;
+${fmt(list)}`;
 
-  const raw = await callMuse(prompt, { model: MUSE_MODELS.fast, reasoningEffort: 'low', json: true, maxTokens: 9000, timeoutMs: 90000 });
-  let parsed: any;
-  try {
-    parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw);
-  } catch {
-    throw new Error('Meta Muse returned the quiz in an unexpected format. Please try again.');
-  }
-
-  const candidates: any[] = Array.isArray(parsed?.questions) ? parsed.questions : [];
+  const t0 = performance.now();
+  const results = await Promise.all(
+    groups.map((g) =>
+      callMuse(ask(g), { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 4000, timeoutMs: 60000 })
+        .then((raw) => JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw))
+        .catch(() => null)
+    )
+  );
+  const parsed: any = results.find((r) => r?.title) ?? results.find(Boolean);
+  if (!parsed) throw new Error('The quiz came back in a shape Ropi couldn’t read. Try again.');
+  // Interleave the groups, so the 6 kept cover every part of the document
+  const lists: any[][] = results.map((r) => (Array.isArray(r?.questions) ? r.questions : []));
+  const candidates: any[] = [];
+  for (let i = 0; i < Math.max(0, ...lists.map((l) => l.length)); i++) for (const l of lists) if (l[i]) candidates.push(l[i]);
   const questions: QuizQuestion[] = [];
   let dropped = 0;
   for (const q of candidates) {
@@ -94,6 +107,7 @@ ${passages}`;
     if (questions.length === 6) break;
   }
 
+  console.info(`[quiz] document quiz written in ${Math.round(performance.now() - t0)} ms: ${questions.length} kept, ${dropped} dropped (quote not found)`);
   if (questions.length < 3) {
     throw new Error(
       `Only ${questions.length} question${questions.length === 1 ? '' : 's'} could be checked against your document (${dropped} quoted text that isn't in it). Try again, or use a longer document.`

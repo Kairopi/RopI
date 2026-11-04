@@ -89,7 +89,7 @@ export async function generateNextLesson(
   try {
     parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw);
   } catch {
-    throw new Error('Meta Muse returned the lesson in an unexpected format.');
+    throw new Error('The lesson came back in a shape Ropi couldn’t read. Try again.');
   }
 
   // The UI shows plain text, so drop markdown emphasis (*word*, **word**, _word_, `code`)
@@ -120,7 +120,7 @@ export async function generateNextLesson(
   };
 
   if (!lesson.explanation) {
-    throw new Error('Meta Muse returned an empty lesson.');
+    throw new Error('The lesson came back empty. Try again.');
   }
   return lesson;
 }

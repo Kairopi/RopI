@@ -62,7 +62,7 @@ export async function generateFlashcards(
   angle?: string
 ): Promise<Flashcard[]> {
   if (!isMuseConfigured()) {
-    throw new Error('Meta Muse API not configured. Please set VITE_MUSE_API_KEY in .env')
+    throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env')
   }
 
   const difficultyGuide = {
@@ -126,7 +126,7 @@ Make flashcards interview-ready and career-relevant.
     // Extract JSON from response
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      throw new Error('Failed to parse flashcards from Muse response')
+      throw new Error('Failed to parse flashcards from the response')
     }
     
     const rawCards = JSON.parse(jsonMatch[0])
@@ -306,7 +306,7 @@ export async function generateConceptFlashcards(
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
 ): Promise<Flashcard[]> {
   if (!isMuseConfigured()) {
-    throw new Error('Meta Muse API not configured')
+    throw new Error('Ropi’s assistant isn’t set up')
   }
 
   const prompt = `

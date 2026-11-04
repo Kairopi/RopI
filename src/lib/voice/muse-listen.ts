@@ -50,6 +50,8 @@ export interface MuseListenOptions {
   graceMs?: number;
   /** Hard cap on one turn */
   maxMs?: number;
+  /** Keep listening through every pause until stopMuseListening() (long answers, recordings) */
+  manual?: boolean;
   /** About to send: ms until it does (null when you start talking again or it's waiting for a tap) */
   onPending?: (ms: number | null) => void;
 }
@@ -154,7 +156,7 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
     };
     active = handle;
 
-    const manual = patience() === 'manual';
+    const manual = opts.manual ?? patience() === 'manual';
     const noSpeech = setTimeout(() => !heardSpeech && finish(''), opts.noSpeechMs ?? (manual ? 20000 : 10000));
     const cap = setTimeout(() => finish(said()), opts.maxMs ?? (manual ? 180000 : 90000));
     const voice = createVoiceCheck();
@@ -244,7 +246,7 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
         opts.onInterim?.(said());
         clearTimeout(grace);
         // Wait longer when it sounds unfinished ("...and", one word), shorter for a finished question
-        if (open.size === 0) arm(opts.graceMs ?? waitAfter(said()));
+        if (open.size === 0) arm(manual ? Infinity : opts.graceMs ?? waitAfter(said()));
       }
     };
     ws.onerror = () => fail('network');
@@ -267,6 +269,6 @@ export async function transcribeRecording(wav: Blob, keywords: string[] = []): P
   form.append('audio', wav, 'speech.wav');
   const r = await fetch(`${BASE}/asr/transcribe`, { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, Accept: 'application/json' }, body: form });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j?.error?.message ?? `Muse transcribe error ${r.status}`);
+  if (!r.ok) throw new Error(j?.error?.message ?? `Listening had a problem (${r.status})`);
   return String(j.transcript ?? '').trim();
 }

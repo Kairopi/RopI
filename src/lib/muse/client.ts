@@ -201,7 +201,7 @@ export class MuseSparkClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Muse Spark API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Ropi’s assistant had a problem: ${response.status} ${response.statusText}`);
     }
 
     return response.json();
@@ -270,7 +270,7 @@ export class MuseVoiceClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Muse Voice API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Listening had a problem: ${response.status} ${response.statusText}`);
     }
 
     return response.json();
@@ -291,7 +291,7 @@ export class MuseVoiceClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Muse Voice API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Listening had a problem: ${response.status} ${response.statusText}`);
     }
 
     return response.json();

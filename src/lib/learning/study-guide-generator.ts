@@ -66,7 +66,7 @@ export async function generateStudyGuide(
   documentTitle?: string
 ): Promise<StudyGuide> {
   if (!isMuseConfigured()) {
-    throw new Error('Meta Muse API not configured. Please set VITE_MUSE_API_KEY in .env')
+    throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env')
   }
 
   console.log(`📚 Generating study guide for: ${topic}`)
@@ -76,12 +76,24 @@ export async function generateStudyGuide(
     console.log('📝 Writing summary, flashcards and quiz together...')
     // (No quiz here: the guide's Quiz tab writes a fresh one when you open it, so writing one now was wasted time)
     // Cards in two halves at once (core ideas / using it), so they arrive in about half the time
-    const [{ summary, keyPoints, prerequisites, learningObjectives }, cardsA, cardsB] = await Promise.all([
-      generateSummary(documentText, topic, difficulty),
-      generateFlashcards(documentText, topic, 4, difficulty, documentTitle, 'the core ideas: what each thing is and why it matters'),
-      generateFlashcards(documentText, topic, 4, difficulty, documentTitle, 'using it at work and the common mistakes people make').catch(() => []),
+    // Six small calls at once instead of three big ones: the slowest answer is
+    // what you wait for, and short answers come back sooner (~10 s -> ~6 s)
+    const ANGLES = [
+      'what the core ideas are and why they matter',
+      'how it works, step by step',
+      'using it in a real situation at work',
+      'the most common mistakes people make with it, and how to avoid them',
+    ]
+    const [summaryPart, pointsPart, ...cardSets] = await Promise.all([
+      generateSummary(documentText, topic, difficulty, 'summary'),
+      generateSummary(documentText, topic, difficulty, 'points').catch(() => ({ summary: '', keyPoints: [], prerequisites: [], learningObjectives: [] })),
+      ...ANGLES.map((a, i) => (i === 0 ? generateFlashcards(documentText, topic, 2, difficulty, documentTitle, a) : generateFlashcards(documentText, topic, 2, difficulty, documentTitle, a).catch(() => []))),
     ])
-    const flashcards = [...cardsA, ...cardsB].map((c, i) => ({ ...c, id: `card-${i + 1}` }))
+    const summary = summaryPart.summary
+    const keyPoints = pointsPart.keyPoints.length ? pointsPart.keyPoints : summaryPart.keyPoints
+    const prerequisites = pointsPart.prerequisites.length ? pointsPart.prerequisites : summaryPart.prerequisites
+    const learningObjectives = pointsPart.learningObjectives.length ? pointsPart.learningObjectives : summaryPart.learningObjectives
+    const flashcards = cardSets.flat().map((c, i) => ({ ...c, id: `card-${i + 1}` }))
     const quizQuestions: Awaited<ReturnType<typeof generateQuizFromTextWithMuse>> = []
 
     // Calculate estimated study time
@@ -134,7 +146,9 @@ export async function generateStudyGuide(
 async function generateSummary(
   documentText: string,
   topic: string,
-  difficulty: 'easy' | 'medium' | 'hard'
+  difficulty: 'easy' | 'medium' | 'hard',
+  /** 'summary' writes only the summary; 'points' the key points and lists. Run both at once. */
+  part: 'summary' | 'points' | 'all' = 'all'
 ): Promise<{
   summary: string
   keyPoints: string[]
@@ -179,6 +193,7 @@ Generate a comprehensive study guide overview in JSON format:
 }
 
 Make it simple to get and straightforward: everyday words, concrete examples, nothing padded.
+${part === 'summary' ? 'Fill ONLY "summary"; return the other fields as empty arrays.' : part === 'points' ? 'Fill ONLY "keyPoints", "prerequisites" and "learningObjectives"; return "summary" as an empty string.' : ''}
 Return ONLY valid JSON (no markdown formatting).
 `;
 
@@ -190,7 +205,7 @@ Return ONLY valid JSON (no markdown formatting).
       try {
         parsed = JSON.parse(response.match(/\{[\s\S]*\}/)?.[0] ?? response)
       } catch (e) {
-        if (attempt === 1) throw new Error('Meta Muse sent back a summary Ropi couldn’t read. Try again.')
+        if (attempt === 1) throw new Error('The summary came back in a shape Ropi couldn’t read. Try again.')
       }
     }
     
@@ -217,7 +232,7 @@ export async function generateLearningRoadmap(
   documentText?: string
 ): Promise<StudyRoadmap> {
   if (!isMuseConfigured()) {
-    throw new Error('Meta Muse API not configured')
+    throw new Error('Ropi’s assistant isn’t set up')
   }
 
   const prompt = `
@@ -288,7 +303,7 @@ export async function generatePracticeExercises(
   solution: string
 }>> {
   if (!isMuseConfigured()) {
-    throw new Error('Meta Muse API not configured')
+    throw new Error('Ropi’s assistant isn’t set up')
   }
 
   const prompt = `

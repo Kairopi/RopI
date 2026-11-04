@@ -206,7 +206,7 @@ export function InterviewPractice({
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                <span>Real-time AI feedback on your answers</span>
+                <span>Feedback on every answer</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
@@ -353,7 +353,7 @@ export function InterviewPractice({
           <Card className="p-6">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-[17px] font-semibold">AI Feedback</h3>
+                <h3 className="text-[17px] font-semibold">Feedback</h3>
                 <div className="flex items-center gap-2">
                   <Award className={`w-5 h-5 ${
                     latestResponse.score >= 80 ? 'text-success' :
