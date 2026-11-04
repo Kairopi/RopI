@@ -2,7 +2,7 @@
 
 The story: **turn dead time into growth time.** People who moved abroad, are changing careers, or are studying for a certification while job hunting don't get free evenings. They get 5 minutes on the platform and 20 on the bus. Ropi makes those minutes count, and keeps the bigger plan moving when the week changes.
 
-Speed (measured 2026-11-04): a quiz on a typed topic shows its first question about 3 s after you press Quiz me (it starts writing while you type), about 6 s from a cold link; a study guide is ready to review in about 8 s; Talk waits up to about 3 s when you trail off mid-sentence, and about 1 s after a finished question.
+Speed (measured 2026-11-04, afternoon): a quiz on a typed topic shows its first question about 2.5 s after you press Quiz me (it starts writing while you type, and questions stream in), about 5.5 s from a cold link; a study guide is ready to review in about 7 s; a quiz from your PDF in about 7 s (was about 20 s); the practice studio's review about 11 s after you stop. Talk waits about 3.6 s when you trail off mid-sentence, 1.8 s after a finished sentence, never while you're still making sound, and "Until I tap the mic" never sends on its own.
 
 Every step below is a flow the end-to-end tests run against the live app (`today-e2e`, `spare-e2e`, `e2e-browser`, `talk-e2e`, `upload-e2e`, `jobs-e2e`, `history-e2e`). Times in brackets are what those runs measured, so you know where to cut. Say only what's on screen.
 
@@ -100,6 +100,14 @@ Point at the list: a 10-minute video, the AWS docs page, an article, a podcast e
 
 > "Ropi never applies for me. It finds roles, checks my fit and drafts answers. I apply, and I say so."
 
+### Optional, 30 s: practise out loud
+
+**Screen:** Practice. Role "Project Manager", **Interview questions**, **Get my scenarios** [about 7 s]. Hear the first one, **Start answering**, answer for 30 seconds, **I'm done**. [The review takes about 11 s; cut the wait.]
+
+Show the score, a "You said / Try" pair quoting your words, the pace and filler counts, the camera frames with their notes, and press play on the recording.
+
+> "I can rehearse the exact situations this job throws at me, see myself, and see what to fix. Practice makes perfect."
+
 ### 2:45 to 3:00. Growth, on the record
 
 **Screen:** Today's **Last 7 days**, then History.
@@ -119,6 +127,7 @@ Point at **Growth time**, then History's day view: the quiz, the reviews, the re
 - **How do you stop made-up answers?** Document quiz quotes are checked word for word against your file. Ask Ropi citations are checked against the evidence it was given. News comes with the URLs Muse searched. Replan reasons come from scheduler data.
 - **Where is my data?** Quizzes, cards, jobs, documents, topic folders, conversations and History are in Supabase behind row-level security (only your account can read your rows). Your week plan is stored in your browser.
 - **Is it ready for real users?** It's a hackathon build. The Meta API key needs to move behind a server before launch, and there's no email login or cross-device sync yet.
+- **Does the practice review read emotions from my face?** No. Camera notes stick to what can be seen: whether you look at the camera, posture, light and framing, an open or tense expression. Pace, fillers and pauses are counted from the recording. The video never leaves your device; only the sound and six still frames are sent.
 - **Why not just ask Muse?** Muse is a general agent that runs errands. Ropi measures what you've learned (per-concept scores, cards timed to right before you'd forget), fits exactly that into the minutes you have with rules that never overplan, and checks its claims (quotes word for word, links only from the live search, CV tailoring that can't add numbers).
 - **Does the CV tailoring make things up?** It can only rewrite the summary, reword and reorder bullets, and reorder skills you already listed. A bullet that brings in a number that wasn't there is put back, and new skills are dropped.
 - **Where do the job listings come from?** Job Seek, Remotive, Remote OK, Jobicy and Arbeitnow, each credited and linked. Job Seek's data is CC BY-NC 4.0, and descriptions belong to the employers.
