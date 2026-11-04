@@ -5,8 +5,7 @@
  */
 import { MUSE_MODELS } from '@/lib/api/muse';
 
-const KEY = import.meta.env.VITE_MUSE_API_KEY as string | undefined;
-const BASE = (import.meta.env.VITE_META_API_BASE_URL as string | undefined) || 'https://api.meta.ai/v1';
+import { MUSE_BASE as BASE, museAuth, museReady } from '@/lib/api/config';
 
 export interface FoundResource {
   title: string;
@@ -82,7 +81,7 @@ function parseList(text: string): Partial<FoundResource>[] {
 }
 
 export async function findFreeResources(subtopic: string, folder: string, opts: { exclude?: string[]; timeoutMs?: number } = {}): Promise<FoundResource[]> {
-  if (!KEY) throw new Error('Ropi’s assistant isn’t set up, so it can’t search.');
+  if (!museReady) throw new Error('Ropi’s assistant isn’t set up, so it can’t search.');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 50000);
   const prompt = `Search the web for the best FREE resources to learn "${subtopic}"${folder && folder.toLowerCase() !== subtopic.toLowerCase() ? ` (part of ${folder})` : ''} for a busy adult who studies in short gaps.
@@ -96,7 +95,7 @@ minutes = about how long it takes to watch, listen or read; null if unknown.`;
     const res = await fetch(`${BASE}/responses`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      headers: { 'Content-Type': 'application/json', ...(await museAuth()) },
       body: JSON.stringify({
         model: MUSE_MODELS.fast,
         input: prompt,

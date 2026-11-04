@@ -10,10 +10,12 @@
  */
 
 import { callMuse } from '@/lib/api/muse';
+import { MUSE_BASE, museRealtimeKey } from '@/lib/api/config';
 
 // API Configuration - Single unified key
-const MUSE_API_KEY = import.meta.env.VITE_MUSE_API_KEY;
-const META_API_BASE_URL = import.meta.env.VITE_META_API_BASE_URL || 'https://api.meta.ai/v1';
+// Unused legacy clients (Spark/Voice endpoints that don't exist); never given the key when deployed
+const MUSE_API_KEY = museRealtimeKey;
+const META_API_BASE_URL = MUSE_BASE;
 
 // Type Definitions
 export interface MuseWonderRequest {

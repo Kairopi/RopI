@@ -15,9 +15,9 @@
 import { SpeechError, type Heard } from './speech-manager';
 import { createVoiceCheck, patience, waitAfter } from './endpoint';
 
-const KEY = import.meta.env.VITE_MUSE_API_KEY as string | undefined;
-const BASE = (import.meta.env.VITE_META_API_BASE_URL as string | undefined) || 'https://api.meta.ai/v1';
-const WS_URL = BASE.replace(/^http/, 'ws') + '/asr/realtime';
+import { MUSE_BASE as BASE, museAuth, museReady, museRealtimeKey as KEY } from '@/lib/api/config';
+// Live listening talks to Meta directly (it needs the key), so it's on in local development only
+const WS_URL = 'wss://api.meta.ai/v1/asr/realtime';
 const RATE = 24000;
 
 export const museListenAvailable = () =>
@@ -260,14 +260,14 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
 
 /** One recording (mono 16-bit WAV, 16 or 24 kHz) -> text, with Muse Voice Transcribe (POST /asr/transcribe) */
 export async function transcribeRecording(wav: Blob, keywords: string[] = []): Promise<string> {
-  if (!KEY) throw new SpeechError('not-supported');
+  if (!museReady) throw new SpeechError('not-supported');
   const form = new FormData();
   form.append(
     'request',
     new Blob([JSON.stringify({ model: 'muse-voice-transcribe-1.0', audioEncoding: 'WAV', mode: 'PUSH_TO_TALK', ...(keywords.length ? { keywords } : {}) })], { type: 'application/json' })
   );
   form.append('audio', wav, 'speech.wav');
-  const r = await fetch(`${BASE}/asr/transcribe`, { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, Accept: 'application/json' }, body: form });
+  const r = await fetch(`${BASE}/asr/transcribe`, { method: 'POST', headers: { ...(await museAuth()), Accept: 'application/json' }, body: form });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j?.error?.message ?? `Listening had a problem (${r.status})`);
   return String(j.transcript ?? '').trim();

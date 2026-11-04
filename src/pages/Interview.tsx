@@ -21,6 +21,7 @@ import { getUserJobs, type JobApplication } from '@/lib/jobs/job-service';
 import { recordReceipt } from '@/lib/receipts';
 import { speechManager } from '@/lib/voice/speech-manager';
 import { listenWithMuse, museListenAvailable, stopMuseListening } from '@/lib/voice/muse-listen';
+import { museViaProxy } from '@/lib/api/config';
 import {
   KINDS,
   average,
@@ -185,7 +186,8 @@ export default function Interview() {
       const sec = Math.floor((Date.now() - t0) / 1000);
       setElapsed(sec);
       if (sec > 0 && sec % 3 === 0) grab();
-      if (sec >= 180) void finish();
+      // Deployed, the recording is uploaded for transcription (about 4 MB max): stop just under 2 minutes
+      if (sec >= (museViaProxy ? 115 : 180)) void finish();
     }, 1000);
     setTimeout(grab, 1500);
   };

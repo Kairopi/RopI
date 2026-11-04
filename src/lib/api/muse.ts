@@ -7,8 +7,7 @@
  * - Question generation with explanations
  */
 
-const MUSE_API_KEY = import.meta.env.VITE_MUSE_API_KEY;
-const MUSE_API_BASE_URL = import.meta.env.VITE_META_API_BASE_URL || 'https://api.meta.ai/v1';
+import { MUSE_BASE as MUSE_API_BASE_URL, museAuth, museReady } from './config';
 
 /**
  * Models available on Meta Model API (checked with GET /v1/models).
@@ -39,7 +38,7 @@ export interface MuseCallOptions {
  * Docs: https://dev.meta.ai/docs/cookbook/quickstart-chat-completions
  */
 export async function callMuse(prompt: string, options: MuseCallOptions = {}): Promise<string> {
-  if (!MUSE_API_KEY) {
+  if (!museReady) {
     throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
   }
 
@@ -67,7 +66,7 @@ export async function callMuse(prompt: string, options: MuseCallOptions = {}): P
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${MUSE_API_KEY}`,
+        ...(await museAuth()),
       },
       body: JSON.stringify({
         model,
@@ -114,7 +113,7 @@ export async function callMuse(prompt: string, options: MuseCallOptions = {}): P
  * the whole answer (measured 2026-11-04), so the page can show it sooner.
  */
 export async function callMuseStream(prompt: string, onText: (soFar: string) => void, options: MuseCallOptions = {}): Promise<string> {
-  if (!MUSE_API_KEY) throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
+  if (!museReady) throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
   const { model = MUSE_MODELS.fast, reasoningEffort = 'minimal', json = false, maxTokens = 4000, timeoutMs = 60000, temperature } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -122,7 +121,7 @@ export async function callMuseStream(prompt: string, onText: (soFar: string) => 
     const response = await fetch(`${MUSE_API_BASE_URL}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MUSE_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', ...(await museAuth()) },
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: prompt }],
@@ -453,7 +452,7 @@ Return JSON:
  * Check if Meta Muse API is configured
  */
 export function isMuseConfigured(): boolean {
-  return Boolean(MUSE_API_KEY && MUSE_API_KEY.length > 0);
+  return museReady;
 }
 
 /**
@@ -475,7 +474,7 @@ export async function getMuseStatus(): Promise<{
   try {
     // Listing models checks the key and endpoint without spending tokens
     const response = await fetch(`${MUSE_API_BASE_URL}/models`, {
-      headers: { Authorization: `Bearer ${MUSE_API_KEY}` },
+      headers: { ...(await museAuth()) },
     });
     if (!response.ok) {
       throw new Error(`Ropi’s assistant had a problem (${response.status})`);
@@ -503,14 +502,14 @@ export async function callMuseWithWebSearch(
   input: string,
   options: { model?: string; timeoutMs?: number; contextSize?: 'low' | 'medium' | 'high' } = {}
 ): Promise<{ text: string; citations: { title: string; url: string }[]; searched: boolean }> {
-  if (!MUSE_API_KEY) throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
+  if (!museReady) throw new Error('Ropi’s assistant isn’t set up. Please set VITE_MUSE_API_KEY in .env');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 45000);
   try {
     const res = await fetch(`${MUSE_API_BASE_URL}/responses`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MUSE_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', ...(await museAuth()) },
       body: JSON.stringify({
         model: options.model ?? MUSE_MODELS.fast,
         input,

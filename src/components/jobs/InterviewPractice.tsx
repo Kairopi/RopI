@@ -24,6 +24,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
+import { museReady } from '@/lib/api/config';
 import { 
   generateInterviewQuestions, 
   evaluateInterviewResponse,
@@ -65,7 +66,8 @@ export function InterviewPractice({
   const [isRecording, setIsRecording] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<any>(null);
 
-  const apiKey = import.meta.env.VITE_MUSE_API_KEY;
+  // The coach functions only check that the assistant is reachable; the key never reaches this page
+  const apiKey = museReady ? 'ready' : '';
 
   const currentQuestion = questions[currentQuestionIndex];
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;

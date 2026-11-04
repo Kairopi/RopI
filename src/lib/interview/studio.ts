@@ -18,8 +18,7 @@ import { callMuse, isMuseConfigured, MUSE_MODELS } from '@/lib/api/muse';
 import { transcribeRecording } from '@/lib/voice/muse-listen';
 import { profileForPrompt } from '@/hooks/useProfile';
 
-const KEY = import.meta.env.VITE_MUSE_API_KEY as string | undefined;
-const BASE = (import.meta.env.VITE_META_API_BASE_URL as string | undefined) || 'https://api.meta.ai/v1';
+import { MUSE_BASE as BASE, museAuth, museReady } from '@/lib/api/config';
 
 export type Kind = 'interview' | 'present' | 'onboard' | 'stakeholder';
 export const KINDS: { id: Kind; label: string; note: string }[] = [
@@ -251,7 +250,7 @@ const inTranscript = (quote: string | undefined, transcript: string) => {
 };
 
 export async function reviewAnswer(input: { role: string; kind: Kind; scenario: Scenario; transcript: string; stats: Stats; frames: string[] }): Promise<Review> {
-  if (!KEY) throw new Error('Ropi’s assistant isn’t set up, so it can’t review this.');
+  if (!museReady) throw new Error('Ropi’s assistant isn’t set up, so it can’t review this.');
   const me = profileForPrompt();
   const text = `${me ? me + '\n' : ''}You are a warm, honest speaking coach helping someone reach the top 10% in their field. They practised for: ${input.role}.
 Type: ${KINDS.find((k) => k.id === input.kind)!.label}.
@@ -280,7 +279,7 @@ Return ONLY JSON: {"headline":"","scores":{"structure":3,"clarity":3,"relevance"
     const res = await fetch(`${BASE}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      headers: { 'Content-Type': 'application/json', ...(await museAuth()) },
       body: JSON.stringify({
         model: MUSE_MODELS.fast,
         reasoning_effort: 'minimal',

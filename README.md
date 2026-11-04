@@ -84,8 +84,21 @@ npm run dev            # http://localhost:5173
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase publishable (anon) key |
-| `VITE_MUSE_API_KEY` | Meta Model API key |
+| `VITE_MUSE_API_KEY` | Meta Model API key, **local development only**. Anything named `VITE_*` is built into the page, so production builds blank it (`.env.production`) |
 | `VITE_META_API_BASE_URL` | Optional, defaults to `https://api.meta.ai/v1` |
+
+## Deploy (Vercel)
+
+The Meta key never reaches the browser in production. Model calls go to `/api/muse/*`, a Vercel Function (`api/muse.ts`) that checks the caller has a Ropi session (their Supabase token), allows only the endpoints Ropi uses, and adds the key on the server.
+
+1. Import the GitHub repo in Vercel (framework: Vite; `vercel.json` sets the build, the `/api/muse` route and the SPA fallback).
+2. Environment variables (Production):
+   - `MUSE_API_KEY`: the Meta Model API key (server only, **no** `VITE_` prefix)
+   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`: as in `.env` (these are public by design)
+   - Don't add `VITE_MUSE_API_KEY`.
+3. Deploy. In Supabase, Authentication > URL Configuration, add the Vercel URL.
+
+Live listening (the realtime WebSocket) needs the key in the browser, so deployed Talk listens with the browser's own speech recognition (Chrome, Edge, Safari), and the practice studio transcribes your recording through the function (answers up to about 2 minutes). Everything else is the same. Checked with the production build served like Vercel: 9 model calls through `/api/muse`, none straight to Meta, no key in the page.
 
 Database setup:
 1. In the Supabase SQL editor, run `supabase-schema.sql`.
@@ -115,7 +128,7 @@ These test scripts live in `.tmp-check/`, which is not committed yet.
 
 ## Known limits
 
-- **The Meta API key is in the browser bundle** (`VITE_MUSE_API_KEY`), which is fine for a demo but not for production. Production needs a small server proxy that holds the key.
+- **The model proxy checks for a Ropi session, not a paid account.** Sign-in is anonymous, so anyone who opens the site can use it. Add rate limits before a wide launch.
 - **Your week (free time, tasks, busy time) and your CV draft are saved in this browser** (localStorage). Quizzes, cards, jobs, documents and History are in Supabase. There's no cross-device sync or email login yet.
 - **Nothing runs in the background.** "Last 7 days" and the plan are worked out when you open the app, and there are no notifications.
 - **Job descriptions are fetched automatically only for Job Seek listings.** For a job from elsewhere, you paste the description.
