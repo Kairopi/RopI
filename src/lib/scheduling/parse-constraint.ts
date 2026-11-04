@@ -36,13 +36,36 @@ function toConstraint(
     deadlineTime?: string | null;
     shiftStart?: string | null;
     shiftEnd?: string | null;
+    dates?: string[] | null;
+    freeStart?: string | null;
+    freeEnd?: string | null;
+    about?: string | null;
   },
   parsedBy: 'muse' | 'rules',
   now: Date
 ): Constraint | null {
   const date = fields.date && YMD.test(fields.date) ? fields.date : formatDate(now);
+  const today = formatDate(now);
+  const horizon = dayOffset(now, 7);
 
   switch (fields.type) {
+    case 'day_off': {
+      const list = (Array.isArray(fields.dates) && fields.dates.length ? fields.dates : [date]).filter((d) => YMD.test(d) && d >= today && d <= horizon);
+      const dates = [...new Set(list)].sort().slice(0, 8);
+      if (!dates.length) return null;
+      return { type: 'day_off', description: input, parsedBy, dates, date: dates[0] };
+    }
+    case 'time_added': {
+      const s = fields.freeStart && HHMM.test(fields.freeStart) ? fields.freeStart : null;
+      let e = fields.freeEnd && HHMM.test(fields.freeEnd) ? fields.freeEnd : null;
+      if (s && !e) {
+        // "free from 8": two hours, but not past midnight
+        const [h, m] = s.split(':').map(Number);
+        e = `${String(Math.min(23, h + 2)).padStart(2, '0')}:${h + 2 > 23 ? '59' : String(m).padStart(2, '0')}`;
+      }
+      if (!s || !e || e <= s || date < today) return null;
+      return { type: 'time_added', description: input, parsedBy, date, freeWindow: { start: s, end: e } };
+    }
     case 'time_reduced': {
       const minutes = Number(fields.availableMinutes);
       if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 24 * 60) return null;
@@ -52,7 +75,8 @@ function toConstraint(
       const time = fields.deadlineTime && HHMM.test(fields.deadlineTime) ? fields.deadlineTime : '17:00';
       const deadline = localDate(date, time);
       if (deadline <= now) return null;
-      return { type: 'deadline_added', description: input, parsedBy, urgentDeadline: deadline };
+      const about = typeof fields.about === 'string' ? fields.about.trim().slice(0, 60) : '';
+      return { type: 'deadline_added', description: input, parsedBy, urgentDeadline: deadline, ...(about ? { about } : {}) };
     }
     case 'shift_conflict': {
       const s = fields.shiftStart && HHMM.test(fields.shiftStart) ? fields.shiftStart : null;
@@ -84,9 +108,60 @@ function to24h(hour: string, minute: string | undefined, meridiem: string | unde
 }
 
 /** Deterministic fallback for common phrasings */
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const DAY_RE = /\b(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?:day|nesday|rsday|urday)?\b/g;
+
+/** "friday" -> the next Friday (today if it's Friday) */
+function nextWeekday(now: Date, day: number): string {
+  return dayOffset(now, (day - now.getDay() + 7) % 7);
+}
+const dayIndex = (w: string) => WEEKDAYS.findIndex((d) => d.startsWith(w.slice(0, 3)));
+
+/** The date a sentence talks about: tomorrow, a weekday name, else today */
+function dateOf(lower: string, now: Date): string {
+  if (/\btomorrow\b/.test(lower)) return dayOffset(now, 1);
+  const m = [...lower.matchAll(DAY_RE)][0];
+  return m ? nextWeekday(now, dayIndex(m[1])) : formatDate(now);
+}
+
+/** Every date a "days off" sentence covers: "Fri to Sun", "this weekend", "today and tomorrow" */
+function datesOf(lower: string, now: Date): string[] {
+  if (/\b(this )?weekend\b/.test(lower)) {
+    const sat = nextWeekday(now, 6);
+    return now.getDay() === 0 ? [formatDate(now)] : [sat, dayOffset(new Date(sat + 'T12:00:00'), 1)];
+  }
+  const days = [...lower.matchAll(DAY_RE)].map((m) => dayIndex(m[1]));
+  if (days.length >= 2 && /\b(to|until|till|through|-|–)\b|-|–/.test(lower)) {
+    const start = nextWeekday(now, days[0]);
+    const span = (days[days.length - 1] - days[0] + 7) % 7;
+    return Array.from({ length: span + 1 }, (_, i) => dayOffset(new Date(start + 'T12:00:00'), i));
+  }
+  if (days.length) return days.map((d) => nextWeekday(now, d));
+  const out = [];
+  if (/\btoday\b|\btonight\b/.test(lower) || !/\btomorrow\b/.test(lower)) out.push(formatDate(now));
+  if (/\btomorrow\b/.test(lower)) out.push(dayOffset(now, 1));
+  return out;
+}
+
 export function parseConstraintWithRules(input: string, now: Date = new Date()): Constraint | null {
   const lower = input.toLowerCase();
-  const date = /\btomorrow\b/.test(lower) ? dayOffset(now, 1) : formatDate(now);
+  const date = dateOf(lower, now);
+
+  // Whole days out: sick, away, a trip, a day off, no studying
+  if (/\b(sick|ill|unwell|day off|days off|away|travel(l?ing)?|trip|holiday|vacation|out of town|no study(ing)?|can'?t study|off (today|tomorrow|this weekend))\b/.test(lower) && !/\bonly\b/.test(lower)) {
+    return toConstraint(input, { type: 'day_off', dates: datesOf(lower, now) }, 'rules', now);
+  }
+
+  // Extra free time: "free tonight from 8 to 10", "finished early, free from 3pm"
+  const free = lower.match(/\bfree\b[^0-9]*?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?(?:\s*(?:-|–|to|until|till)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?/);
+  if (free && !/\bnot free\b/.test(lower)) {
+    const evening = /tonight|evening/.test(lower);
+    const endMer = free[6] ?? free[3] ?? (evening || Number(free[1]) < 8 ? 'pm' : undefined);
+    const startMer = free[3] ?? endMer;
+    const start = to24h(free[1], free[2], startMer);
+    const end = free[4] ? to24h(free[4], free[5], endMer) : null;
+    return toConstraint(input, { type: 'time_added', date, freeStart: start, freeEnd: end }, 'rules', now);
+  }
 
   // Shift/meeting with an explicit time range: "6PM-10PM", "2 to 6 pm"
   const range = lower.match(
@@ -112,10 +187,16 @@ export function parseConstraintWithRules(input: string, now: Date = new Date()):
   }
 
   // Deadline: "closes tomorrow at 5PM", "due today at 3"
-  if (/(close|closes|closing|due|deadline|submit by|apply by)/.test(lower)) {
+  if (/(close|closes|closing|due|deadline|submit by|apply by|moved to|is now on)/.test(lower)) {
     const at = lower.match(/at\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
     const deadlineTime = at ? to24h(at[1], at[2], at[3] ?? 'pm') : '17:00';
-    return toConstraint(input, { type: 'deadline_added', date, deadlineTime }, 'rules', now);
+    // What's due: the words before "closes / is due / moved"
+    const about = input
+      .split(/\b(?:closes|closing|close|is due|due|deadline|moved|submit by|apply by)\b/i)[0]
+      .replace(/^(my|the|our)\s+/i, '')
+      .trim()
+      .slice(0, 60);
+    return toConstraint(input, { type: 'deadline_added', date, deadlineTime, about }, 'rules', now);
   }
 
   // Shift without times: assume it takes the evening
@@ -141,13 +222,15 @@ A user describes a change to their free time for study and job applications. Cla
 
 Types:
 - "time_reduced": they have only N minutes of free time on a day. Fill availableMinutes.
-- "deadline_added": something (e.g. a job application) is now due at a time. Fill deadlineTime.
-- "shift_conflict": they are busy during a time range (work shift, meeting). Fill shiftStart and shiftEnd. If no times are given, use 18:00-22:00.
+- "deadline_added": something is now due at a time (a job application, an exam, an assignment, a course). Fill deadlineTime and "about" = what is due in 2-5 words, e.g. "Monzo application", "AWS exam".
+- "shift_conflict": they are busy during a time range (work shift, meeting, appointment). Fill shiftStart and shiftEnd. If no times are given, use 18:00-22:00.
+- "day_off": whole days with no study time (sick, travelling, away, a holiday, "no studying this weekend"). Fill "dates" with every date covered (within the next 7 days).
+- "time_added": they have EXTRA free time (finished work early, a cancelled plan). Fill freeStart and freeEnd (if no end is given, 2 hours after the start).
 - "unknown": anything else.
 
 Return ONLY a JSON object:
-{"type": "...", "date": "YYYY-MM-DD", "availableMinutes": number|null, "deadlineTime": "HH:MM"|null, "shiftStart": "HH:MM"|null, "shiftEnd": "HH:MM"|null}
-Use 24-hour times. "tonight" means today. "tomorrow" means the day after today.
+{"type": "...", "date": "YYYY-MM-DD", "dates": ["YYYY-MM-DD"]|null, "availableMinutes": number|null, "deadlineTime": "HH:MM"|null, "about": string|null, "shiftStart": "HH:MM"|null, "shiftEnd": "HH:MM"|null, "freeStart": "HH:MM"|null, "freeEnd": "HH:MM"|null}
+Use 24-hour times. "tonight" means today. "tomorrow" means the day after today. A weekday name means the next one (today if it is that day).
 
 User: "${text.replace(/"/g, "'")}"`;
 

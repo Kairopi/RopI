@@ -21,11 +21,11 @@ import ReasoningCard from '@/components/ReasoningCard';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, RotateCcw, CalendarDays, List, Loader2, AlertTriangle, X, Plus } from '@/components/icons';
+import { MessageSquare, RotateCcw, CalendarDays, List, Loader2, AlertTriangle, X, Plus, ArrowRight, CheckCircle2 } from '@/components/icons';
 import { WeekItemDialog, type WeekItem } from '@/components/WeekItemDialog';
 import { useSchedule } from '@/hooks/useSchedule';
 import { usePlan } from '@/hooks/usePlan';
-import { changedTaskIds, explainChanges, suggestFixes, type Plan } from '@/lib/scheduling/plan';
+import { buildPlan, changedTaskIds, explainChanges, suggestFixes, type Plan } from '@/lib/scheduling/plan';
 import type { Adjustment, Constraint, PlanChange, Suggestion } from '@/lib/scheduling/types';
 import { recordReceipt } from '@/lib/receipts';
 import { delay } from '@/lib/animations/constants';
@@ -69,8 +69,8 @@ function pipelineSteps(after: Plan, changed: number, constraint?: Constraint): A
 
 export default function LifeShift() {
   const navigate = useNavigate();
-  const { constraints, adjustments, addConstraint, addAdjustments, removeAdjustment, reset } = useSchedule();
-  const { plan: current, planWith, planWithAdjustments } = usePlan();
+  const { constraints, adjustments, addConstraint, addAdjustments, removeAdjustment, removeConstraint, reset } = useSchedule();
+  const { plan: current, input: planInput, planWith, planWithAdjustments } = usePlan();
 
   const [replanning, setReplanning] = useState(false);
   const [comparison, setComparison] = useState<Comparison | null>(null);
@@ -144,9 +144,52 @@ export default function LifeShift() {
   };
 
   const handleReset = () => {
+    if (!confirm('Undo every change you made this week? Your plan goes back to your usual free time.')) return;
     reset();
     setComparison(null);
   };
+
+  /** Undo one change: the week is replanned without it, and the blocks travel back */
+  const undoConstraint = (i: number) => {
+    const c = constraints[i];
+    const after = buildPlan(constraints.filter((_, j) => j !== i), planInput, new Date(), adjustments);
+    void commit(
+      after,
+      `Undo: ${c.description}`,
+      () => removeConstraint(i),
+      () =>
+        recordReceipt({
+          domain: 'plan',
+          kind: 'plan.replanned',
+          actor: 'user',
+          verification: 'system_recorded',
+          title: `Undid "${c.description}"`,
+          detail: `${plural(changedTaskIds(current.schedule, after.schedule).length, 'task')} moved back`,
+          evidence: { undone: c },
+        })
+    );
+  };
+
+  // What the last change did, in one line, with the way back to Today
+  const summary = comparison
+    ? (() => {
+        const moved = comparison.changed.length;
+        const risk = comparison.after.schedule.atRiskTasks.length;
+        const firstToday = comparison.after.schedule.blocks
+          .filter((b) => b.date === new Date().toLocaleDateString('en-CA') && new Date(b.endTime) > new Date())
+          .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+        const t = firstToday && comparison.after.tasks.find((x) => x.id === firstToday.taskId);
+        // A deadline change: say which task it landed on
+        const prevById = new Map(comparison.before.tasks.map((x) => [x.id, x]));
+        const due = comparison.after.tasks.find((x) => x.deadline && (prevById.get(x.id)?.deadline?.getTime() ?? 0) !== x.deadline.getTime());
+        const dueLine = due ? `"${due.title}" is now due ${due.deadline!.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}${prevById.has(due.id) ? '' : ' (new task)'}. ` : '';
+        return {
+          dueLine,
+          head: moved === 0 ? 'Nothing needed to move.' : `${plural(moved, 'block')} moved${risk ? `, ${risk} still ${risk === 1 ? 'doesn’t' : 'don’t'} fit` : ', everything still fits'}.`,
+          next: t ? `Next today: ${t.title} at ${new Date(firstToday.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.` : 'Nothing else planned for today.',
+        };
+      })()
+    : null;
 
   const hasChanges = constraints.length > 0 || adjustments.length > 0;
   const schedule = current.schedule;
@@ -218,7 +261,33 @@ export default function LifeShift() {
                 transition={{ duration: 0.25 }}
                 className="space-y-4"
               >
-                <ReasoningCard changes={comparison.changes} />
+                {summary && (
+                  <Card className="border-success/25 bg-success/[0.04] p-4">
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13.5px] font-semibold">{summary.head}</p>
+                        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                          {summary.dueLine}
+                          {summary.next}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => navigate('/dashboard')}>
+                        See today
+                        <ArrowRight />
+                      </Button>
+                      {constraints.length > 0 && !comparison.label.startsWith('Undo') && constraints[constraints.length - 1].description === comparison.label && (
+                        <Button size="sm" variant="ghost" onClick={() => undoConstraint(constraints.length - 1)}>
+                          <RotateCcw />
+                          Undo this change
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                )}
+                {comparison.changes.length > 0 && <ReasoningCard changes={comparison.changes} />}
                 <AgentStatusFeed updates={comparison.updates} />
               </motion.div>
             )}
@@ -282,6 +351,9 @@ export default function LifeShift() {
                 >
                   <MessageSquare className="h-3 w-3 shrink-0 text-primary" />
                   <span className="truncate">{c.description}</span>
+                  <button aria-label={`Undo "${c.description}"`} title="Undo this change" onClick={() => undoConstraint(i)} className="rounded-full p-0.5 hover:bg-muted hover:text-foreground">
+                    <X className="h-3 w-3" />
+                  </button>
                 </span>
               ))}
               {adjustments.map((a, i) => (

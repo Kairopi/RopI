@@ -19,8 +19,24 @@ interface ScheduleStore {
   lastRecalculatedAt: number | null;
   addConstraint: (constraint: Constraint) => void;
   addAdjustments: (adjustments: Adjustment[], label: string) => void;
+  removeConstraint: (index: number) => void;
   removeAdjustment: (index: number) => void;
   reset: () => void;
+}
+
+/** The last moment a change matters; after that it's dropped */
+export function constraintEnds(c: Constraint): number {
+  const endOfDay = (ymd?: string) => (ymd ? new Date(ymd + 'T23:59:59').getTime() : Infinity);
+  switch (c.type) {
+    case 'day_off':
+      return endOfDay([...(c.dates ?? [])].sort().pop());
+    case 'shift_conflict':
+      return c.conflictingShift ? new Date(c.conflictingShift.end).getTime() : Infinity;
+    case 'deadline_added':
+      return c.urgentDeadline ? new Date(c.urgentDeadline).getTime() : Infinity;
+    default:
+      return endOfDay(c.date);
+  }
 }
 
 export const useSchedule = create<ScheduleStore>()(
@@ -48,6 +64,12 @@ export const useSchedule = create<ScheduleStore>()(
           lastRecalculatedAt: Date.now(),
         })),
 
+      removeConstraint: (index) =>
+        set((state) => ({
+          constraints: state.constraints.filter((_, i) => i !== index),
+          lastRecalculatedAt: Date.now(),
+        })),
+
       removeAdjustment: (index) =>
         set((state) => ({
           adjustments: state.adjustments.filter((_, i) => i !== index),
@@ -58,6 +80,12 @@ export const useSchedule = create<ScheduleStore>()(
     }),
     {
       name: 'ropi-lifeshift-v2',
+      // Changes that are over (last week's shift) stop counting
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ScheduleStore>;
+        const now = Date.now();
+        return { ...current, ...p, constraints: (p.constraints ?? []).filter((c) => constraintEnds(c) >= now) };
+      },
       partialize: (state) => ({
         constraints: state.constraints,
         adjustments: state.adjustments,

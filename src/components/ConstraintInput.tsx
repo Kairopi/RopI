@@ -27,7 +27,11 @@ const TYPE_LABELS: Record<Constraint['type'], string> = {
   time_reduced: 'Less free time',
   deadline_added: 'New deadline',
   shift_conflict: 'Busy period',
+  day_off: 'Days off',
+  time_added: 'Extra free time',
 };
+const dayName = (ymd: string) => new Date(ymd + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+const clock = (hhmm: string) => new Date(`2000-01-01T${hhmm}:00`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
 const when = (date: Date | string) =>
   new Date(date).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
@@ -156,8 +160,17 @@ export default function ConstraintInput({ onSubmit, isLoading, previewImpact }: 
                 {new Date(parsed.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })}
               </Row>
             )}
+            {parsed.type === 'deadline_added' && parsed.about && <Row label="What">{parsed.about}</Row>}
             {parsed.type === 'deadline_added' && parsed.urgentDeadline && (
               <Row label="Due">{when(parsed.urgentDeadline)}</Row>
+            )}
+            {parsed.type === 'day_off' && parsed.dates && (
+              <Row label="Off">{parsed.dates.map(dayName).join(', ')}</Row>
+            )}
+            {parsed.type === 'time_added' && parsed.freeWindow && parsed.date && (
+              <Row label="Free">
+                {dayName(parsed.date)}, {clock(parsed.freeWindow.start)} to {clock(parsed.freeWindow.end)}
+              </Row>
             )}
             {parsed.type === 'shift_conflict' && parsed.conflictingShift && (
               <Row label="Busy">

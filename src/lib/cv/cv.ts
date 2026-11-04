@@ -147,6 +147,24 @@ ${text.slice(0, 14000)}`,
 
 const BANNED = /\b(spearheaded|revolutionized|synergy|leverag\w*|game-changer|world-class|cutting-edge|rockstar|ninja|guru|visionary|thought leader|paradigm)\b/gi;
 
+/** A 2-3 sentence summary from what's already in the CV (no new facts or numbers) */
+export async function writeSummary(cv: CV): Promise<string> {
+  if (!isMuseConfigured()) throw new Error('Meta Muse is not set up, so Ropi can’t write it.');
+  const facts = { headline: cv.headline, experience: cv.experience.map((e) => ({ role: e.role, company: e.company, start: e.start, end: e.end, bullets: e.bullets.filter(Boolean) })), education: cv.education, skills: cv.skills, certifications: cv.certifications };
+  const out = await callMuse(
+    `Write a CV summary: 2 or 3 short sentences, no "I", plain confident words, for someone ${cv.headline ? `going for ${cv.headline} roles` : 'job hunting'}. Use ONLY facts below; no numbers, tools or employers that aren't there. Never use: passionate, results-driven, leverage, spearheaded, synergy, world-class.
+Return ONLY JSON: {"summary": ""}
+
+${JSON.stringify(facts).slice(0, 8000)}`,
+    { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 2000, timeoutMs: 30000 }
+  );
+  const s = str((parseJson(out) as { summary?: unknown }).summary, 900).replace(BANNED, '').replace(/\s{2,}/g, ' ').trim();
+  const have = new Set(JSON.stringify(facts).match(/\d[\d,.%]*/g) ?? []);
+  if (!s) throw new Error('Muse didn’t write a summary. Try again.');
+  if ((s.match(/\d[\d,.%]*/g) ?? []).some((n) => !have.has(n))) throw new Error('That draft had a number that isn’t in your CV, so Ropi dropped it. Try again.');
+  return s;
+}
+
 export interface TailorChange {
   where: string;
   what: string;

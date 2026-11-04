@@ -32,13 +32,14 @@ import {
   loadCv,
   saveCv,
   tailorCv,
+  writeSummary,
   type CV as CvData,
   type CvTemplate,
   type TailorChange,
 } from '@/lib/cv/cv';
 import { cn } from '@/lib/utils';
 
-type Busy = null | 'fill' | 'tailor' | 'pdf' | 'docx' | 'use';
+type Busy = null | 'fill' | 'tailor' | 'pdf' | 'docx' | 'use' | 'summary';
 
 export default function CV() {
   const userId = useUserId();
@@ -290,10 +291,28 @@ export default function CV() {
               <Field label="City, country" value={cv.location} onChange={(v) => set('location', v)} />
               <Field label="Links (comma between)" value={cv.links.join(', ')} onChange={(v) => set('links', v.split(',').map((x) => x.trim()).filter(Boolean))} placeholder="linkedin.com/in/you, github.com/you" />
             </div>
-            <label className="mt-3 block text-[12px] font-medium text-muted-foreground">
-              Summary
-              <Textarea value={cv.summary} onChange={(e) => set('summary', e.target.value)} rows={3} className="mt-1 text-[13px]" placeholder="Two or three sentences: who you are, what you’re great at, what you want next." />
-            </label>
+            <div className="mt-3 text-[12px] font-medium text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <label htmlFor="cv-summary">Summary</label>
+                {cv.experience.some((e) => e.role || e.bullets.some(Boolean)) && (
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    onClick={() => {
+                      void run('summary', async () => {
+                        set('summary', await writeSummary(cv));
+                        return 'Summary written from your own experience. Edit it to sound like you.';
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 font-medium text-primary hover:underline disabled:opacity-50"
+                  >
+                    {busy === 'summary' && <Loader2 className="h-3 w-3 animate-spin" />}
+                    {cv.summary ? 'Rewrite it for me' : 'Write it for me'}
+                  </button>
+                )}
+              </div>
+              <Textarea id="cv-summary" value={cv.summary} onChange={(e) => set('summary', e.target.value)} rows={3} className="mt-1 text-[13px]" placeholder="Two or three sentences: who you are, what you’re great at, what you want next." />
+            </div>
           </Section>
 
           <Section title="Experience" onAdd={() => set('experience', [...cv.experience, emptyExperience()])} addLabel="Add a job">

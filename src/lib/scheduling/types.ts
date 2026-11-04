@@ -78,8 +78,20 @@ export interface FocusBlock {
 }
 
 export interface Constraint {
-  type: 'time_reduced' | 'deadline_added' | 'shift_conflict';
+  /**
+   * time_reduced: only N min free that day. shift_conflict: busy for a range.
+   * day_off: whole days with no study time (sick, away, a trip).
+   * time_added: extra free time ("free tonight 7 to 9").
+   * deadline_added: something is now due (`about` says what).
+   */
+  type: 'time_reduced' | 'deadline_added' | 'shift_conflict' | 'day_off' | 'time_added';
   description: string; // Natural language: "only 20min tonight"
+  /** day_off: the local dates (YYYY-MM-DD) with no free time */
+  dates?: string[];
+  /** time_added: the extra free window on `date` (HH:MM) */
+  freeWindow?: { start: string; end: string };
+  /** deadline_added: what is due, in a few words ("AWS exam", "Monzo application") */
+  about?: string;
   /** Who turned the sentence into this structure */
   parsedBy?: 'muse' | 'rules';
   /** Local date (YYYY-MM-DD) a time_reduced constraint applies to; default today */

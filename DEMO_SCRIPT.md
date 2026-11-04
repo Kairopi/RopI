@@ -62,12 +62,21 @@ The two questions you missed, with answers. Tap **Explain Lambda cold starts sim
 
 > "Everything about one idea lives in one place: what I missed, my notes, my conversations, my links."
 
+### Optional, 20 s: free resources that fit the gap
+
+**Screen:** the **Lambda cold starts** subtopic, Resources panel. The search starts when the page opens [15 to 30 s], so open the page a minute before this beat.
+
+Point at the list: a 10-minute video, the AWS docs page, an article, a podcast episode, each with its length. **Save all**. Back on Today, **Got a few minutes?** on 20 min now offers **Watch: AWS Lambda in 10 Minutes**.
+
+> "Ropi searches the live web for free material on exactly what I keep missing, and only shows links that came back from the search."
+
 ### 1:40 to 2:05. When the week changes: LifeShift
 
 **Screen:** LifeShift.
 
 1. Click the example "Manager added shift, only 20min tonight". **Preview** shows what will move, then **Replan my week**. [Meta Muse reads it in about 1.5 s]
-2. Blocks travel to their new slots. Point at the reason on each move. (If Muse were down, you'd see **Read with simple rules** instead.)
+2. Blocks travel to their new slots. Point at the summary ("3 blocks moved, everything still fits. Next today: ...") and the reason on each move. (If Muse were down, you'd see **Read with simple rules** instead.)
+3. Optional: type "Away Fri to Sun for a wedding". The preview lists the three days. Tap the **x** on a change to undo just that one.
 
 > "Meta Muse reads the sentence. The scheduler, not the model, decides what moves, and says why."
 
@@ -86,6 +95,8 @@ The two questions you missed, with answers. Tap **Explain Lambda cold starts sim
 
 1. **Find jobs**: "Product Manager", London. Results come from five job sites, each credited. Save one. [About 3 s]
 2. **Score my fit** with your resume: the score and what's missing.
+
+3. Optional: **Design my CV**. **Fill in from my resume** [about 10 s], switch Classic, Modern, Sidebar, then **Download PDF**. It's real text, not a picture.
 
 > "Ropi never applies for me. It finds roles, checks my fit and drafts answers. I apply, and I say so."
 
@@ -108,4 +119,6 @@ Point at **Growth time**, then History's day view: the quiz, the reviews, the re
 - **How do you stop made-up answers?** Document quiz quotes are checked word for word against your file. Ask Ropi citations are checked against the evidence it was given. News comes with the URLs Muse searched. Replan reasons come from scheduler data.
 - **Where is my data?** Quizzes, cards, jobs, documents, topic folders, conversations and History are in Supabase behind row-level security (only your account can read your rows). Your week plan is stored in your browser.
 - **Is it ready for real users?** It's a hackathon build. The Meta API key needs to move behind a server before launch, and there's no email login or cross-device sync yet.
+- **Why not just ask Muse?** Muse is a general agent that runs errands. Ropi measures what you've learned (per-concept scores, cards timed to right before you'd forget), fits exactly that into the minutes you have with rules that never overplan, and checks its claims (quotes word for word, links only from the live search, CV tailoring that can't add numbers).
+- **Does the CV tailoring make things up?** It can only rewrite the summary, reword and reorder bullets, and reorder skills you already listed. A bullet that brings in a number that wasn't there is put back, and new skills are dropped.
 - **Where do the job listings come from?** Job Seek, Remotive, Remote OK, Jobicy and Arbeitnow, each credited and linked. Job Seek's data is CC BY-NC 4.0, and descriptions belong to the employers.
