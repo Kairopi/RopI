@@ -3,7 +3,11 @@
  *
  * Khoj's "weekly progress" automation, done honestly for a web app: there is
  * no server sending notifications, so this is computed when you open Today,
- * from quiz attempts, FSRS reviews, tasks you checked off and jobs you applied to.
+ * from quiz attempts, FSRS reviews, tasks you checked off, jobs you applied to and
+ * conversations in Talk.
+ *
+ * Growth time = quiz time + about 20 s per card reviewed + tasks done (their real minutes)
+ * + Talk: from your first message to Ropi's last reply, plus 30 s to hear it, at most an hour each.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -14,6 +18,15 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from '@/components/icons';
 import { useWeek } from '@/hooks/useWeek';
 import { formatDate } from '@/lib/scheduling/utils';
+import { listConversations, type Conversation } from '@/lib/library/store';
+
+/** Minutes spent in one conversation */
+export function talkMinutes(c: Pick<Conversation, 'turns'>): number {
+  const times = c.turns.map((t) => new Date(t.at).getTime()).filter(Number.isFinite);
+  if (!times.length) return 0;
+  const span = (Math.max(...times) - Math.min(...times)) / 60000;
+  return Math.min(60, span + 0.5);
+}
 
 interface Day {
   date: string;
@@ -24,7 +37,7 @@ interface Day {
 export function WeekInReview({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const tasks = useWeek((s) => s.tasks);
-  const [rows, setRows] = useState<{ quizzes: { at: string; secs: number }[]; reviews: string[]; applied: string[] } | null>(null);
+  const [rows, setRows] = useState<{ quizzes: { at: string; secs: number }[]; reviews: string[]; applied: string[]; talks: { at: string; min: number }[] } | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -33,11 +46,15 @@ export function WeekInReview({ userId }: { userId: string }) {
       supabase.from('quiz_attempts').select('created_at, time_taken_seconds').eq('user_id', userId).gte('created_at', since),
       supabase.from('review_sessions').select('created_at').eq('user_id', userId).gte('created_at', since),
       supabase.from('job_applications').select('applied_at').eq('user_id', userId).gte('applied_at', since),
-    ]).then(([q, r, j]) =>
+      listConversations(50).catch(() => [] as Conversation[]),
+    ]).then(([q, r, j, c]) =>
       setRows({
         quizzes: (q.data ?? []).map((x: any) => ({ at: x.created_at, secs: x.time_taken_seconds ?? 0 })),
         reviews: (r.data ?? []).map((x: any) => x.created_at),
         applied: (j.data ?? []).map((x: any) => x.applied_at).filter(Boolean),
+        talks: c
+          .filter((x) => x.turns.length > 1 && new Date(x.started_at).getTime() >= Date.parse(since))
+          .map((x) => ({ at: x.started_at, min: talkMinutes(x) })),
       })
     );
   }, [userId]);
@@ -45,11 +62,11 @@ export function WeekInReview({ userId }: { userId: string }) {
   const since = Date.now() - 7 * 86_400_000;
   const done = tasks.filter((t) => t.doneAt && new Date(t.doneAt).getTime() >= since);
   const focusMin = Math.round(
-    done.reduce((s, t) => s + (t.actualMinutes ?? t.duration), 0) + (rows?.quizzes.reduce((s, q) => s + q.secs, 0) ?? 0) / 60 + (rows?.reviews.length ?? 0) * (20 / 60)
+    done.reduce((s, t) => s + (t.actualMinutes ?? t.duration), 0) + (rows?.quizzes.reduce((s, q) => s + q.secs, 0) ?? 0) / 60 + (rows?.reviews.length ?? 0) * (20 / 60) + (rows?.talks.reduce((s, t) => s + t.min, 0) ?? 0)
   );
 
   const days: Day[] = useMemo(() => {
-    const stamps = [...(rows?.quizzes.map((q) => q.at) ?? []), ...(rows?.reviews ?? []), ...(rows?.applied ?? []), ...done.map((t) => t.doneAt!)];
+    const stamps = [...(rows?.quizzes.map((q) => q.at) ?? []), ...(rows?.reviews ?? []), ...(rows?.applied ?? []), ...(rows?.talks.map((t) => t.at) ?? []), ...done.map((t) => t.doneAt!)];
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));

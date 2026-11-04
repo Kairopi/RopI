@@ -8,19 +8,24 @@ You tell Ropi when you're free and what you need to do. It places each task in y
 
 | Page | What it's for |
 |---|---|
-| **Today** | **Got a few minutes?** Pick 2, 5, 10 or 20 minutes and whether you can look at the screen. Ropi lists up to three things that fit, from your own data: the cards FSRS says are due, the concept you score worst on, a job that closes in the next 3 days, a short news brief on your goal. Audio only keeps to things Ropi can say out loud. Then what to do next and why. Your week on a 24-hour calendar with dates: click empty time to add something to do or busy time, click a block to start it or mark it done. Check-ins after a planned block ends ("Done, took 30 min"). Last 7 days. |
+| **Today** | **Got a few minutes?** Pick 2, 5, 10 or 20 minutes and whether you can look at the screen. Ropi lists up to three things that fit, from your own data: the cards FSRS says are due, the concept you score worst on, a job that closes in the next 3 days, a short news brief on your goal. Audio only keeps to things Ropi can say out loud. Then what to do next and why. Your week on a 24-hour calendar with dates: click empty time to add something to do or busy time, click a block to start it or mark it done. Check-ins after a planned block ends ("Done, took 30 min"). Last 7 days, with Growth time: quiz time, card reviews, tasks done and time talking with Ropi. Finishing a quiz ticks off the block that planned it. |
 | **Talk** | Hands-free, for small gaps in the day. Say "I have 10 minutes on the train" and Ropi says how to spend them ("start" opens the first one). Or "I'm lost, what does a project charter mean?", "quiz me", "latest news on PMP", "a podcast for my commute" ("under 15 minutes" picks an episode that fits), "remind me to read chapter 4 tomorrow", "find product manager jobs in London", or "help me answer this form question". Ropi answers out loud in the voice you pick, keeps listening until you say stop, and saves every conversation with the time of each message. |
 | **LifeShift** | Say or type what changed. Meta Muse turns the sentence into a constraint, the scheduler replans, moved blocks travel to their new slot, and anything that no longer fits gets concrete fixes ("Do 135 min instead", "Skip it this week"). |
-| **Learn** | A folder for each topic you study, which you can rename and add subtopics to. Each folder holds its documents, quizzes (dated), review cards, conversations with Ropi, and links you or Ropi saved. Quizzes score each concept separately. Missed questions become FSRS review cards. Meta Muse writes a short lesson on your weakest concept. Upload a PDF or DOCX and get a quiz where every answer quotes the exact line it came from. Voice quizzes. |
+| **Learn** | One box to start: type a topic and choose **Quiz me** or **Study guide + cards**, or switch to **My notes** and drop a PDF or DOCX. A study guide opens as soon as you save it, and the cards you keep join your daily reviews. A folder for each topic you study, which you can rename and add subtopics to. Each folder holds its documents, quizzes (dated), review cards, conversations with Ropi, and links you or Ropi saved. Quizzes score each concept separately. Missed questions become FSRS review cards. Meta Muse writes a short lesson on your weakest concept. Upload a PDF or DOCX and get a quiz where every answer quotes the exact line it came from. Voice quizzes. |
 | **Jobs** | One search across five job sources: Job Seek (company career pages), Remotive, Remote OK, Jobicy and Arbeitnow. Saving a job keeps its full description. Score your resume against it, tailor the resume with Meta Muse, approve it, then apply yourself on the source's site. A Board view shows every job by stage. |
 | **Tasks** | Everything on your plate this week, what's at risk, and how your real times compare with your estimates. |
 | **History** | Everything you did, day by day: quizzes, reviews, replans, applications and conversations. A 5-week calendar at the top lets you jump to any day. Each entry says how Ropi knows: "Recorded by Ropi" or "You reported". Entries can't be edited or deleted. |
 | **Ask Ropi** (Ctrl/Cmd + K) | Questions about your own week and progress ("What have I been getting wrong?"). Answers cite your quiz history, cards, notes and plan. |
 
+## On your phone
+
+Ropi has a web app manifest, so Chrome and Edge can install it (Android, Windows, macOS). Long-press (or right-click) the installed icon for two shortcuts: **5 minutes** opens Today on 5 minutes, and **Audio only** opens Talk and asks for a 5-minute audio plan. iOS doesn't support web app shortcuts. There's no service worker, so Ropi needs a connection.
+
 ## Honesty rules
 
 These are enforced in code, not just stated:
 
+- **Got a few minutes never plans more minutes than you picked**, and Audio only never offers a screen task.
 - **Ropi never applies for you.** "Applied" is something you report, and History shows it as "You reported".
 - **Document quizzes keep only questions whose quote is word for word in your document** (`quoteIsInChunk`). Anything Muse can't back up is dropped.
 - **Ask Ropi answers only from your own records.** Citations to evidence that doesn't exist are stripped before you see them (`verifyCitations`).
@@ -83,7 +88,8 @@ Other commands: `npm run build`, `npm run typecheck`.
 End-to-end browser tests (Playwright) run against the live Supabase project and Meta API:
 
 - the main flow: onboarding, quiz, weak spot, review cards, lesson, LifeShift, Ask Ropi, check-in, History, and Got a few minutes picking the new weak spot
-- spare minutes: the plan fits the time, Audio only has no screen tasks, the choice is remembered, Start opens the step, and Talk answers "I have 10 minutes on the train"
+- Learn: one composer, a typed topic opens a quiz, a study guide opens after saving and its kept cards are added to reviews (counted in the database), a quiz ticks off its planned block, the manifest and shortcut URL
+- spare minutes: the plan fits the time, Growth time counts a Talk conversation, Audio only has no screen tasks, the choice is remembered, Start opens the step, and Talk answers "I have 10 minutes on the train"
 - the calendar: add busy time, add a task, open a block, collapse a section
 - PDF upload to a quoted quiz
 - jobs: search, save with description, score, tailor, I applied, History

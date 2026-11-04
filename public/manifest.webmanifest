@@ -1,0 +1,32 @@
+{
+  "name": "Ropi: turn dead time into growth time",
+  "short_name": "Ropi",
+  "description": "Say how many minutes you have. Ropi picks the one thing worth doing, from your own quizzes, cards and job deadlines.",
+  "id": "/",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F9F9F7",
+  "theme_color": "#1F45F5",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Got 5 minutes",
+      "short_name": "5 minutes",
+      "description": "What's worth doing in the next 5 minutes",
+      "url": "/dashboard?spare=5",
+      "icons": [{ "src": "/icons/shortcut-5.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "5 minutes, audio only",
+      "short_name": "Audio only",
+      "description": "Hands busy: Ropi talks, you answer out loud",
+      "url": "/talk?q=I%20have%205%20minutes%2C%20audio%20only",
+      "icons": [{ "src": "/icons/shortcut-audio.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}

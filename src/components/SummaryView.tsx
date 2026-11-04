@@ -16,7 +16,7 @@ interface SummaryViewProps {
 
 export function SummaryView({ guide }: SummaryViewProps) {
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
       {/* Summary Card */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-4">
@@ -24,7 +24,7 @@ export function SummaryView({ guide }: SummaryViewProps) {
           <h3 className="font-semibold">Summary</h3>
         </div>
         
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+        <p className="whitespace-pre-wrap text-[15px] leading-[1.7]">
           {guide.summary}
         </p>
       </Card>

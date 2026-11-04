@@ -8,7 +8,7 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Clock, ArrowRight, CreditCard as Cards } from '@/components/icons';
-import type { StudyGuideDB } from '@/lib/learning/study-materials-db';
+import { cardCount, type StudyGuideDB } from '@/lib/learning/study-materials-db';
 
 interface StudyGuideCardProps {
   guide: StudyGuideDB;
@@ -16,7 +16,7 @@ interface StudyGuideCardProps {
 }
 
 export function StudyGuideCard({ guide, onClick }: StudyGuideCardProps) {
-  const flashcardCount = (guide.flashcards as any)?.length || 0;
+  const flashcardCount = cardCount(guide);
   const summary = guide.summary?.trim() ?? '';
 
   return (

@@ -10,6 +10,7 @@
  */
 
 import { useLoop } from '@/hooks/useLoop';
+import { useWeek } from '@/hooks/useWeek';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -60,6 +61,12 @@ function Results({ result }: { result: QuizResultState }) {
   const [lesson, setLesson] = useState<AdaptiveLesson | null>(null);
   const [lessonLoading, setLessonLoading] = useState(false);
   const [lessonError, setLessonError] = useState<string | null>(null);
+
+  // The planned block for this quiz (e.g. "AWS Lambda quiz" tonight) is done now: take it off the week.
+  // Local only, so it doesn't wait for the database; ticking twice is a no-op.
+  useEffect(() => {
+    useWeek.getState().completeByHref([`/quiz/${result.quizId}`, result.retakePath, `/voice-quiz?quiz=${result.quizId}`], result.timeElapsed / 60);
+  }, [result.attemptId, result.quizId, result.retakePath, result.timeElapsed]);
 
   // Process the attempt exactly once (safe under StrictMode and page refresh)
   useEffect(() => {

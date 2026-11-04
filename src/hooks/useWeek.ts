@@ -57,6 +57,8 @@ interface WeekStore {
   toggleDone: (id: string) => void;
   recordSlots: (slots: Record<string, { start: string; end: string }>) => void;
   checkIn: (id: string, action: CheckInAction, minutes?: number) => void;
+  /** A quiz you finished ticks off the planned task that opens it (no extra History entry: the quiz has one) */
+  completeByHref: (hrefs: string[], minutes: number) => number;
   finishSetup: () => void;
   loadSample: () => void;
   clear: () => void;
@@ -218,6 +220,19 @@ export const useWeek = create<WeekStore>()(
             tasks: s.tasks.map((t) => (t.id === id ? { ...t, doneAt: new Date().toISOString(), actualMinutes: actual } : t)),
           };
         }),
+
+      completeByHref: (hrefs, minutes) => {
+        const want = new Set(hrefs.map((h) => h.replace(/[?&]start=1$/, '')));
+        let n = 0;
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.doneAt || !t.href || !want.has(t.href)) return t;
+            n++;
+            return { ...t, doneAt: new Date().toISOString(), actualMinutes: Math.max(1, Math.round(minutes)) };
+          }),
+        }));
+        return n;
+      },
 
       finishSetup: () => set({ setupDone: true }),
       loadSample: () => set((s) => ({ ...sampleWeek(), ownerId: s.ownerId })),

@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, Headphones, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,26 @@ const load = (): { minutes: number; mode: SpareMode } => {
 export function SpareMinutes({ className }: { className?: string }) {
   const navigate = useNavigate();
   const reduce = useReducedMotion();
-  const [pref, setPref] = useState(load);
+  const [params, setParams] = useSearchParams();
+  // Opened from a home-screen shortcut (?spare=5&mode=audio): use that, and remember it
+  const [pref, setPref] = useState(() => {
+    const saved = load();
+    const m = Number(params.get('spare'));
+    const mode = params.get('mode');
+    return {
+      minutes: (SPARE_OPTIONS as readonly number[]).includes(m) ? m : saved.minutes,
+      mode: mode === 'audio' || mode === 'screen' ? (mode as SpareMode) : saved.mode,
+    };
+  });
+  useEffect(() => {
+    if (params.has('spare') || params.has('mode')) {
+      const next = new URLSearchParams(params);
+      next.delete('spare');
+      next.delete('mode');
+      setParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const goal = useWeek((s) => s.goal?.title ?? null);
   const dueCards = useLoop((s) => s.dueCards);
   const weakSpots = useLoop((s) => s.weakSpots);

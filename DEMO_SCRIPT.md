@@ -7,7 +7,7 @@ Every step below is a flow the end-to-end tests run against the live app (`spare
 ## Before you record
 
 1. Use a fresh Chrome or Edge profile (voice needs one of them). Sign in with a name and choose **Load a sample week**.
-2. On Learn, there should be no Meta Muse warning under the header. A warning means the key is missing or Muse isn't answering.
+2. On Learn, there should be no Meta Muse warning inside **Learn something new**. A warning means the key is missing or Muse isn't answering.
 3. Have ready a short PDF of study notes (one or two pages, e.g. AWS Lambda limits) and your resume as plain text.
 4. Do one warm-up pass, then sign out and start fresh for the real take. The sample week is built from "now", so record within an hour of loading it.
 5. If anything fails live, cut to the backup take. Don't narrate around an error.
@@ -60,7 +60,7 @@ Every step below is a flow the end-to-end tests run against the live app (`spare
 
 ### 2:05 to 2:25. My own notes, with proof
 
-**Screen:** Learn, From a document.
+**Screen:** Learn, **Learn something new**, then **My notes**.
 
 1. Drop the PDF, then **Quiz me on it (with quotes)**. [About 15 s; cut the wait.]
 2. Answer one question and show the quoted line on results: **quote verified word for word**.

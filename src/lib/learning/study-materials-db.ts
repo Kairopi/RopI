@@ -92,6 +92,13 @@ export async function saveStudyGuide(
   }
 }
 
+/** Cards in a guide: works with a full flashcards list or a lashcards(count) select */
+export function cardCount(guide: Pick<StudyGuideDB, 'flashcards'>): number {
+  const f = guide.flashcards as unknown as Array<{ count?: number }> | undefined;
+  if (!f?.length) return 0;
+  return typeof f[0]?.count === 'number' && f.length === 1 && !('front' in (f[0] as object)) ? f[0].count! : f.length;
+}
+
 export async function fetchStudyGuides(userId: string): Promise<StudyGuideDB[]> {
   try {
     const { data, error } = await supabase

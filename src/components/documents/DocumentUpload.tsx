@@ -48,6 +48,8 @@ export interface DocumentUploadProps {
   onGenerateStudyMaterials?: (text: string) => Promise<void>
   maxFileSize?: number // MB
   allowedTypes?: Array<'pdf' | 'docx'>
+  /** Shorter drop area, for use inside another card */
+  compact?: boolean
 }
 
 export function DocumentUpload({
@@ -55,6 +57,7 @@ export function DocumentUpload({
   onGenerateStudyMaterials,
   maxFileSize = 10, // 10MB default
   allowedTypes = ['pdf', 'docx'],
+  compact = false,
 }: DocumentUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0, percentage: 0 })
@@ -171,7 +174,7 @@ export function DocumentUpload({
       >
         <input {...getInputProps()} />
         
-        <div className="px-6 py-9 text-center">
+        <div className={compact ? 'px-5 py-5 text-center' : 'px-6 py-9 text-center'}>
           <AnimatePresence mode="wait">
             {isProcessing ? (
               <motion.div

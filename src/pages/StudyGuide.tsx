@@ -1,14 +1,14 @@
 /**
  * Study Guide Viewer Page
  * 
- * Full-featured study guide with 4 tabs:
- * 1. Summary - AI-generated overview
- * 2. Flashcards - 3D flip viewer with FSRS
- * 3. Quiz - Muse-generated quiz on the guide topic
+ * Opens right after you save a guide. Three tabs:
+ * 1. Summary - what Meta Muse wrote
+ * 2. Cards - flip through the cards you kept (spacing happens in Daily reviews)
+ * 3. Quiz - a fresh Muse quiz on the guide's topic
  */
 
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { useUserId } from '../contexts/AuthContext';
 import { FlashcardViewer } from '../components/FlashcardViewer';
@@ -24,11 +24,11 @@ import {
   FileQuestion, 
   Calendar,
   Loader2,
-  Trash2
+  Trash2,
+  CheckCircle2,
 } from '@/components/icons';
 import { 
   fetchStudyGuideById, 
-  updateFlashcardReview,
   deleteStudyGuide,
   type StudyGuideDB 
 } from '@/lib/learning/study-materials-db';
@@ -37,7 +37,8 @@ export default function StudyGuide() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const userId = useUserId();
-  
+  const created = (useLocation().state as { created?: { kept: number; scheduled: number } } | null)?.created;
+
   const [guide, setGuide] = useState<StudyGuideDB | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('summary');
@@ -57,30 +58,13 @@ export default function StudyGuide() {
         setGuide(data);
       } else {
         // Guide not found
-        navigate('/learning-hub');
+        navigate('/learning');
       }
     } catch (error) {
       console.error('Failed to load study guide:', error);
-      navigate('/learning-hub');
+      navigate('/learning');
     } finally {
       setIsLoading(false);
-    }
-  };
-  
-  const handleRateFlashcard = async (flashcardId: string, rating: 0 | 1 | 2 | 3) => {
-    try {
-      // TODO: Implement FSRS rating logic
-      // For now, just update review count
-      await updateFlashcardReview(flashcardId, {
-        review_count: 1, // Would increment properly
-        last_reviewed_at: new Date().toISOString(),
-        next_review_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 1 day later
-      });
-      
-      console.log(`✅ Rated flashcard ${flashcardId} with rating ${rating}`);
-    } catch (error) {
-      console.error('Failed to rate flashcard:', error);
-      throw error;
     }
   };
   
@@ -98,7 +82,7 @@ export default function StudyGuide() {
     
     try {
       await deleteStudyGuide(id, userId);
-      navigate('/learning-hub');
+      navigate('/learning');
     } catch (error) {
       console.error('Failed to delete study guide:', error);
       alert('Failed to delete study guide');
@@ -122,10 +106,10 @@ export default function StudyGuide() {
           <h2 className="text-[17px] font-semibold">Study guide not found</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">It may have been deleted.</p>
           <Button 
-            onClick={() => navigate('/learning-hub')}
+            onClick={() => navigate('/learning')}
             className="mt-4"
           >
-            Back to Learning Hub
+            Back to Learn
           </Button>
         </div>
       </DashboardLayout>
@@ -137,11 +121,11 @@ export default function StudyGuide() {
   return (
     <DashboardLayout>
       <button
-        onClick={() => navigate('/learning-hub')}
+        onClick={() => navigate('/learning')}
         className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Study guides
+        Learn
       </button>
       <PageHeader
         eyebrow={
@@ -161,6 +145,22 @@ export default function StudyGuide() {
           </Button>
         }
       />
+      {created && (
+        <div role="status" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
+          <p className="flex items-center gap-2 text-[13.5px]">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            {created.scheduled > 0
+              ? `Saved. ${created.kept} card${created.kept === 1 ? '' : 's'} joined your daily reviews.`
+              : `Saved with ${created.kept} card${created.kept === 1 ? '' : 's'}. They couldn't be added to your reviews just now.`}
+          </p>
+          {created.scheduled > 0 && (
+            <Button size="sm" variant="outline" onClick={() => navigate('/reviews')}>
+              Review them now
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6 grid w-full grid-cols-3 sm:inline-flex sm:w-auto">
@@ -171,7 +171,7 @@ export default function StudyGuide() {
           
           <TabsTrigger value="flashcards" className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" />
-            <span className="hidden sm:inline">Flashcards</span>
+            <span className="hidden sm:inline">Cards</span>
             <Badge variant="secondary" className="ml-1 hidden md:inline-flex">
               {flashcards.length}
             </Badge>
@@ -191,11 +191,16 @@ export default function StudyGuide() {
         {/* Flashcards Tab */}
         <TabsContent value="flashcards">
           {flashcards.length > 0 ? (
-            <FlashcardViewer 
-              flashcards={flashcards}
-              onRate={handleRateFlashcard}
-              onComplete={handleFlashcardsComplete}
-            />
+            <>
+              <p className="mb-4 text-[13px] text-muted-foreground">
+                Flip through them here. Spaced practice happens in{' '}
+                <button onClick={() => navigate('/reviews')} className="font-medium text-primary hover:underline">
+                  Daily reviews
+                </button>
+                , where FSRS brings each card back right before you'd forget it.
+              </p>
+              <FlashcardViewer flashcards={flashcards} onComplete={handleFlashcardsComplete} />
+            </>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               No flashcards available
