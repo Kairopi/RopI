@@ -74,7 +74,8 @@ export default function WeekCanvas({
 }: WeekCanvasProps) {
   const reduceMotion = useReducedMotion();
   const hourHeight = compact ? 56 : 80; // 15-min block = 14px compact, 20px full
-  const minBlock = compact ? 14 : 20;
+  // Tall enough for one line of text: a 5-minute block is still readable
+  const minBlock = compact ? 17 : 20;
   const frameHeight = compact ? 448 : 560; // ~8 hours visible, the rest scrolls
 
   // The 7 local days shown, starting today
@@ -196,6 +197,20 @@ export default function WeekCanvas({
       : { type: 'spring' as const, stiffness: 170, damping: 24, mass: 0.9, delay: (movedOrder.get(blockKey(b)) ?? 0) * 0.09 };
 
   const today = formatDate(new Date());
+
+  /** Back-to-back short blocks: each one starts below the last, so none hides another (the tooltip and dialog keep the exact time) */
+  const stackDay = (blocks: TimeBlock[]) => {
+    let floor = -Infinity;
+    return [...blocks]
+      .sort((a, c) => a.startTime.localeCompare(c.startTime))
+      .map((b) => {
+        const trueTop = yFor(minutesOfDay(b.startTime));
+        const top = Math.max(trueTop, floor);
+        const height = Math.max(minBlock, yFor(minutesOfDay(b.endTime)) - trueTop - 2);
+        floor = top + height + 2;
+        return { b, top, height };
+      });
+  };
 
   const hourLabel = (h: number) => `${((h + 11) % 12) + 1}${h < 12 ? 'a' : 'p'}`;
 
@@ -378,13 +393,9 @@ export default function WeekCanvas({
                 </AnimatePresence>
 
                 {/* Time blocks */}
-                {placed
-                  .filter((b) => b.date === formatDate(d))
-                  .map((b) => {
+                {stackDay(placed.filter((b) => b.date === formatDate(d))).map(({ b, top, height }) => {
                     const task = tasksById.get(b.taskId);
                     if (!task) return null;
-                    const top = yFor(minutesOfDay(b.startTime));
-                    const height = Math.max(minBlock, yFor(minutesOfDay(b.endTime)) - top - 2);
                     const tone =
                       task.category === 'learning'
                         ? 'bg-primary text-primary-foreground'

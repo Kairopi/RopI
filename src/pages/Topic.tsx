@@ -9,13 +9,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Panel } from '@/components/Panel';
+import { Panel, setPanelOpen } from '@/components/Panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, BookOpen, Brain, ChevronDown, ExternalLink, FileText, Loader2, MessageSquare, Mic, Plus, Trash2 } from '@/components/icons';
 import { useUserId } from '@/contexts/AuthContext';
 import { BUILT_IN_QUIZ_LIST } from '@/lib/mock/quizzes';
 import { loadFolders, type TopicFolder } from '@/lib/library/topics';
+import { DocumentUpload, type ParsedDocument } from '@/components/documents/DocumentUpload';
+import { saveSource } from '@/lib/documents/sources';
 import { deleteTopic, saveTopic, storageMode, topicKey, type SavedLink } from '@/lib/library/store';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +35,8 @@ export default function Topic() {
   const [link, setLink] = useState({ title: '', url: '' });
   const [openConvo, setOpenConvo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const all = await loadFolders(userId);
@@ -218,18 +222,41 @@ export default function Topic() {
         </Panel>
 
         {/* Documents */}
-        <Panel id="topic-docs" defaultOpen={folder.sources.length > 0} title="Documents" meta={folder.sources.length ? String(folder.sources.length) : undefined} summary={folder.sources.map((s) => s.title).join(' · ') || 'None yet'} actions={<Button size="sm" variant="ghost" onClick={() => navigate('/learning#documents')}><Plus />Upload</Button>}>
+        <Panel id="topic-docs" defaultOpen={folder.sources.length > 0} title="Documents" meta={folder.sources.length ? String(folder.sources.length) : undefined} summary={folder.sources.map((s) => s.title).join(' · ') || 'None yet'} actions={<Button size="sm" variant="ghost" onClick={() => { setPanelOpen('topic-docs', true); setUploading((u) => !u); }} aria-expanded={uploading}><Plus />Upload</Button>}>
+          {uploading && (
+            <div className="mb-4">
+              <DocumentUpload
+                compact
+                onDocumentParsed={async (d: ParsedDocument) => {
+                  setUploadNote('Saving it in this folder...');
+                  try {
+                    const title = d.fileName.replace(/\.(pdf|docx?)$/i, '');
+                    const r = await saveSource({ title, topic: folder.topic, fileName: d.fileName, fileType: d.fileType, text: d.text, pages: d.pages });
+                    setUploadNote(r.existing ? 'You already had this one. It’s below.' : `Saved in ${folder.name}.`);
+                    setUploading(false);
+                    await load();
+                  } catch (e) {
+                    setUploadNote(e instanceof Error ? e.message : 'Could not save it');
+                  }
+                }}
+              />
+            </div>
+          )}
+          {uploadNote && <p className="mb-3 text-[12.5px] text-muted-foreground" role="status">{uploadNote}</p>}
           {folder.sources.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">Upload notes or a PDF on Learn with this topic, and Ropi will quiz you on them with quotes.</p>
+            !uploading && <p className="text-[13px] text-muted-foreground">Upload your notes (PDF or DOCX) into this folder, and Ropi quizzes you on them with quotes from the page.</p>
           ) : (
             <ul className="divide-y rounded-xl border">
               {folder.sources.map((s) => (
                 <li key={s.id} className="flex items-center gap-3 px-3.5 py-3">
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
+                  <button className="min-w-0 flex-1 text-left hover:[&>div:first-child]:text-primary" onClick={() => navigate(`/learn/doc/${s.id}`)}>
                     <div className="truncate text-[13.5px] font-medium">{s.title}</div>
                     <div className="truncate text-[12px] text-muted-foreground">{[s.summary, `added ${when(s.created_at)}`].filter(Boolean).join(' · ')}</div>
-                  </div>
+                  </button>
+                  <Button size="sm" variant="ghost" onClick={() => navigate(`/learn/doc/${s.id}`)}>
+                    Read
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => navigate(`/quiz/new?source=${s.id}`)}>
                     Quiz me
                   </Button>

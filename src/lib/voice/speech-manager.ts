@@ -31,9 +31,10 @@ export class SpeechError extends Error {
         'not-allowed': 'Microphone access is blocked. Allow it in the browser address bar, or click your answer.',
         'service-not-allowed': 'Microphone access is blocked. Allow it in the browser address bar, or click your answer.',
         'audio-capture': 'No microphone was found.',
-        network: 'Speech recognition needs an internet connection.',
+        network: 'Voice recognition isn’t reachable from this browser. It needs Chrome or Edge with an internet connection (Brave and some others block it).',
         aborted: 'Listening stopped.',
         'start-failed': 'The microphone is busy. Try again in a moment.',
+        'language-not-supported': 'Voice recognition doesn’t support this language here.',
       }[code] ?? `Speech recognition error (${code}).`
     );
   }
@@ -69,6 +70,9 @@ export class SpeechManager {
   private recognition: any = null;
   private isSupported: SpeechSupport;
   private voices: SpeechSynthesisVoice[] = [];
+  /** Bumped by stopSpeaking() and every speak(), so an old chunked reply stops */
+  private speakGen = 0;
+  private current: SpeechSynthesisUtterance | null = null;
 
   constructor() {
     // Check TTS support (guarded so the module can be imported outside a browser)
@@ -163,51 +167,75 @@ export class SpeechManager {
 
   /**
    * Speak text (Text-to-Speech)
-   * 
-   * Research: 0.9 rate for clarity, 1.0 pitch for natural sound
+   *
+   * Long text is spoken one short chunk at a time. Chrome's online voices stop
+   * after about 15 seconds and never fire `end`, which used to leave Talk stuck
+   * on "Ropi is talking". Each chunk also has a watchdog: if `end` doesn't come
+   * well after the chunk should have finished, we move on.
    */
   async speak(text: string, options: SpeakOptions = {}): Promise<void> {
     if (!this.isSupported.tts || !this.synthesis) {
       throw new Error('Text-to-speech not supported in this browser');
     }
-
     const synthesis = this.synthesis;
     const voice = options.voice ?? (await this.getPreferredVoice(options.lang ?? 'en-US'));
+    const gen = ++this.speakGen;
 
     // Only cancel when something is queued: in Chrome, cancel() immediately
     // followed by speak() can swallow the new utterance.
     if (synthesis.speaking || synthesis.pending) synthesis.cancel();
 
-    return new Promise((resolve, reject) => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      // Apply options
-      utterance.rate = options.rate ?? 0.9;      // Research: 0.9 = clear
-      utterance.pitch = options.pitch ?? 1.0;
-      utterance.volume = options.volume ?? 1.0;
-      utterance.lang = options.lang ?? 'en-US';
-      if (voice) utterance.voice = voice;
+    const rate = options.rate ?? 0.9;
+    for (const chunk of chunkForSpeech(text)) {
+      if (gen !== this.speakGen) return; // stopped, or a newer speak() took over
+      await new Promise<void>((resolve, reject) => {
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        utterance.rate = rate;
+        utterance.pitch = options.pitch ?? 1.0;
+        utterance.volume = options.volume ?? 1.0;
+        utterance.lang = voice?.lang ?? options.lang ?? 'en-US';
+        if (voice) utterance.voice = voice;
 
-      utterance.onend = () => resolve();
-      utterance.onerror = (event) => {
-        // stopSpeaking() / a newer speak() cancels this one: that is not a failure
-        if (event.error === 'interrupted' || event.error === 'canceled') resolve();
-        else reject(new Error(`Speech synthesis error: ${event.error}`));
-      };
+        let done = false;
+        const finish = (fn: () => void) => {
+          if (done) return;
+          done = true;
+          clearTimeout(watchdog);
+          clearInterval(keepAlive);
+          fn();
+        };
+        // About 14 characters a second at normal speed, plus room for the voice to start
+        const watchdog = setTimeout(() => finish(resolve), 4000 + (chunk.length / (14 * rate)) * 1000 * 1.6);
+        // Belt and braces for the same Chrome bug: nudge long chunks along
+        const keepAlive = setInterval(() => {
+          if (synthesis.speaking && !synthesis.paused) {
+            synthesis.pause();
+            synthesis.resume();
+          }
+        }, 10000);
 
-      synthesis.speak(utterance);
-    });
+        utterance.onend = () => finish(resolve);
+        utterance.onerror = (event) => {
+          // stopSpeaking() / a newer speak() cancels this one: that is not a failure
+          if (event.error === 'interrupted' || event.error === 'canceled') finish(resolve);
+          else finish(() => reject(new Error(`Speech synthesis error: ${event.error}`)));
+        };
+        // Keep a reference: Chrome can garbage-collect an utterance mid-speech and drop `end`
+        this.current = utterance;
+        synthesis.speak(utterance);
+      });
+    }
   }
 
   /**
    * Stop speaking immediately
    */
   stopSpeaking(): void {
+    this.speakGen++;
     if (this.synthesis) {
       this.synthesis.cancel();
     }
   }
-
   /**
    * Check if currently speaking
    */
@@ -228,13 +256,28 @@ export class SpeechManager {
    * Listen once, with the live (interim) transcript as you speak, up to 3
    * alternative guesses, and the recogniser's confidence (0-1; some browsers
    * always report 0, which we treat as unknown).
+   *
+   * A fresh recogniser every time: reusing one throws "already started" if the
+   * last session hasn't fully closed, which showed up as the mic doing nothing.
+   * An empty final result (Edge does this on a cough or background noise) counts
+   * as "didn't hear anything", instead of leaving the page stuck on "Listening".
    */
   async listenDetailed(options: { onInterim?: (text: string) => void } = {}): Promise<Heard> {
-    if (!this.isSupported.stt || !this.recognition) {
+    if (!this.isSupported.stt) {
       throw new Error('Speech recognition not supported in this browser');
     }
-    this.recognition.interimResults = !!options.onInterim;
-    this.recognition.maxAlternatives = 3;
+    try {
+      this.recognition?.abort?.();
+    } catch {
+      // not running
+    }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognition.interimResults = !!options.onInterim;
+    recognition.maxAlternatives = 3;
+    this.recognition = recognition;
 
     return new Promise((resolve, reject) => {
       // Settle exactly once: result, error, or "ended with nothing heard"
@@ -247,37 +290,37 @@ export class SpeechManager {
         }
       };
 
-      this.recognition.onresult = (event: any) => {
+      recognition.onresult = (event: any) => {
         const result = event.results[event.results.length - 1];
         if (!result.isFinal) {
-          lastInterim = Array.from(event.results as ArrayLike<any>).map((r: any) => r[0].transcript).join(' ');
-          options.onInterim?.(lastInterim);
+          lastInterim = Array.from(event.results as ArrayLike<any>).map((r: any) => r[0].transcript).join(' ').trim();
+          if (lastInterim) options.onInterim?.(lastInterim);
           return;
         }
         const alternatives = Array.from(result as ArrayLike<any>).map((a: any) => String(a.transcript).trim()).filter(Boolean);
+        if (!alternatives.length) return; // empty: let onend decide
         const confidence = Number(result[0].confidence) || 0;
-        finish(() => resolve({ transcript: alternatives[0] ?? '', alternatives, confidence: confidence > 0 ? confidence : null }));
+        finish(() => resolve({ transcript: alternatives[0], alternatives, confidence: confidence > 0 ? confidence : null }));
       };
 
-      this.recognition.onerror = (event: any) => {
+      recognition.onerror = (event: any) => {
         finish(() => reject(new SpeechError(event.error)));
       };
 
       // Chrome ends recognition after a few seconds of silence without firing an error.
       // If it ended mid-word with only an interim guess, use that rather than losing it.
-      this.recognition.onend = () => {
-        if (lastInterim.trim()) finish(() => resolve({ transcript: lastInterim.trim(), alternatives: [lastInterim.trim()], confidence: null }));
+      recognition.onend = () => {
+        if (lastInterim) finish(() => resolve({ transcript: lastInterim, alternatives: [lastInterim], confidence: null }));
         else finish(() => reject(new SpeechError('no-speech')));
       };
 
       try {
-        this.recognition.start();
-      } catch (error) {
+        recognition.start();
+      } catch {
         finish(() => reject(new SpeechError('start-failed')));
       }
     });
   }
-
   /**
    * Stop listening
    */
@@ -299,6 +342,42 @@ export class SpeechManager {
     // This would need to be tracked externally
     return false;
   }
+}
+
+/**
+ * Split text for speech: whole sentences, at most ~180 characters each, so no
+ * single utterance runs long enough to hit Chrome's 15-second cut-off.
+ */
+export function chunkForSpeech(text: string, max = 180): string[] {
+  const sentences = text.replace(/\s+/g, ' ').trim().match(/[^.!?]+[.!?]+[)"']*|[^.!?]+$/g) ?? [];
+  const out: string[] = [];
+  let cur = '';
+  const push = (s: string) => {
+    if (s.trim()) out.push(s.trim());
+  };
+  for (const raw of sentences) {
+    const s = raw.trim();
+    if (s.length > max) {
+      push(cur);
+      cur = '';
+      // A very long sentence: break at commas, then at spaces
+      let rest = s;
+      while (rest.length > max) {
+        const cut = Math.max(rest.lastIndexOf(', ', max), rest.lastIndexOf(' ', max));
+        const at = cut > max * 0.4 ? cut + 1 : max;
+        push(rest.slice(0, at));
+        rest = rest.slice(at);
+      }
+      cur = rest;
+    } else if ((cur + ' ' + s).trim().length > max) {
+      push(cur);
+      cur = s;
+    } else {
+      cur = (cur + ' ' + s).trim();
+    }
+  }
+  push(cur);
+  return out;
 }
 
 // Singleton instance

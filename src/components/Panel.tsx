@@ -27,6 +27,11 @@ const usePanels = create<{ closed: Record<string, boolean>; toggle: (id: string,
   )
 );
 
+/** Open (or close) a panel from outside, e.g. an action button that needs the body visible */
+export function setPanelOpen(id: string, open: boolean) {
+  usePanels.setState((s) => ({ closed: { ...s.closed, [id]: !open } }));
+}
+
 interface PanelProps {
   /** Stable id used to remember open/closed */
   id: string;

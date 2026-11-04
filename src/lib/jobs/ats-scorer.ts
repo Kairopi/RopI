@@ -83,7 +83,13 @@ const STOP = new Set(
    role team teams work working join looking hiring candidate candidates company opportunity opportunities position responsibilities
    requirements required preferred plus strong excellent great good proven solid deep clear new well key help make
    experience experienced years year skills skill knowledge understanding including include includes day days time based
-   own owning set run running write writing build building drive driving lead leading manage managing support supporting`
+   own owning set run running write writing build building drive driving lead leading manage managing support supporting
+   every everyone everything need needs needed improve improving improvement share shared sharing experiences decision decisions
+   capability capabilities technical systems system world worlds million millions best high quality impact impactful ensure enable
+   enabling part take want love thrive passion passionate fast environment way ways thing things many much first like just even
+   around together helping global people person ideas idea value values mission vision culture benefits offer offering apply
+   drives makes matter matters builds leads owns runs writes
+   across closely partner partners partnering collaborate collaborating collaboration cross functional stakeholders business`
     .split(/\s+/)
     .filter(Boolean)
 );
@@ -95,9 +101,11 @@ const stem = (w: string) => w.replace(/(ing|ed|es|s)$/, '');
  * its most repeated two-word phrases and words (Resume Matcher's keyword idea,
  * done without a model so it is instant and repeatable).
  */
-function jobTerms(text: string, limit = 20): string[] {
-  const known = Object.values(COMMON_KEYWORDS).flat().filter((k) => hasTerm(text, k));
-  const keep = (w: string) => w.length > 2 && !STOP.has(w) && !/^\d+\+?$/.test(w);
+function jobTerms(text: string, limit = 20, exclude: string[] = []): string[] {
+  // The company's own name isn't something to put on your resume ("add spotify")
+  const banned = new Set(exclude.flatMap((e) => e.toLowerCase().split(/[^a-z0-9]+/)).filter((w) => w.length > 2));
+  const known = Object.values(COMMON_KEYWORDS).flat().filter((k) => hasTerm(text, k) && !banned.has(k.toLowerCase()));
+  const keep = (w: string) => w.length > 2 && !STOP.has(w) && !banned.has(w) && !/^\d+\+?$/.test(w);
   const counts = new Map<string, number>();
   // Phrases never cross punctuation: "testing, SQL" is two terms, not "testing sql"
   for (const clause of text.toLowerCase().split(/[.,;:!?()\n•|]+|\s-\s|\s(?:and|or)\s/)) {
@@ -112,7 +120,8 @@ function jobTerms(text: string, limit = 20): string[] {
     }
   }
   const ranked = [...counts.entries()]
-    .filter(([t, n]) => n >= 1.5 || t.includes(' '))
+    // A single word has to come up at least twice to count as something the job emphasises
+    .filter(([t, n]) => (t.includes(' ') ? n >= 1.5 : n >= 2))
     .sort((a, b) => b[1] - a[1])
     .map(([t]) => t);
   const out: string[] = [];
@@ -138,7 +147,7 @@ function resumeHas(resume: string, term: string): boolean {
  * Calculate keyword match score (0-100): share of the job's key terms your resume uses
  */
 function calculateKeywordMatch(resume: Resume, job: Job): { score: number; matched: string[]; missing: string[] } {
-  const terms = jobTerms(`${job.description} ${job.requirements || ''}`);
+  const terms = jobTerms(`${job.description} ${job.requirements || ''}`, 20, [job.company]);
   if (terms.length === 0) return { score: 50, matched: [], missing: [] }; // no description to compare against
 
   const matched = terms.filter((t) => resumeHas(resume.content, t));

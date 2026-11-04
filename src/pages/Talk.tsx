@@ -22,6 +22,8 @@ import { useUserId } from '@/contexts/AuthContext';
 import { usePlan } from '@/hooks/usePlan';
 import { useWeek } from '@/hooks/useWeek';
 import { useLoop } from '@/hooks/useLoop';
+import { useAgenda } from '@/hooks/useAgenda';
+import { sayTime } from '@/lib/coach/brief';
 import { speechManager, SpeechError } from '@/lib/voice/speech-manager';
 import { respond, speakable, type Reply } from '@/lib/coach/brain';
 import { newConversation, saveConversation, saveTopic, listTopics, topicKey, type Conversation, type Turn, type SavedLink } from '@/lib/library/store';
@@ -34,12 +36,13 @@ import { cn } from '@/lib/utils';
 type State = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const SUGGESTIONS = [
+  'What do I have today?',
   'I have 10 minutes on the train',
   'I’m lost. What does a project charter mean?',
   'Quiz me on my weakest topic',
   'Latest news on project management',
   'A podcast for my commute',
-  'Find product manager jobs in London',
+  'Read me my week',
 ];
 
 const STOP_WORDS = /^(stop|stop listening|that'?s all|thanks?,? (that'?s all|bye)|bye|goodbye|cancel|pause)\b/i;
@@ -69,6 +72,7 @@ export default function Talk() {
   const dueCards = useLoop((s) => s.dueCards);
   const weakSpots = useLoop((s) => s.weakSpots);
   const loopJobs = useLoop((s) => s.jobs);
+  const agenda = useAgenda();
   const support = speechManager.getSupport();
 
   const [state, setState] = useState<State>('idle');
@@ -184,16 +188,24 @@ export default function Talk() {
       if (run.current !== id) return;
       setInterim('');
       const code = e instanceof SpeechError ? e.code : '';
-      if (code === 'no-speech' || code === 'aborted') {
+      if (code === 'no-speech') {
         silent.current++;
+        // Hands-free: one quiet spell is normal (you're thinking), so keep listening once more
+        if (prefRef.current.handsFree && silent.current < 2 && convoRef.current.turns.length > 0) {
+          setNotice('Still listening. Say "stop" when you’re done.');
+          void listenRef.current?.();
+          return;
+        }
         setState('idle');
-        setNotice(silent.current >= 2 ? 'Paused while it’s quiet. Tap to talk again.' : 'I didn’t catch anything. Tap to try again.');
+        setNotice(silent.current >= 2 ? 'Paused while it’s quiet. Tap to talk again.' : 'I didn’t catch anything. Tap the mic, wait for it to turn red, then speak.');
+      } else if (code === 'aborted') {
+        setState('idle');
       } else if (code === 'not-allowed' || code === 'service-not-allowed') {
         setState('idle');
-        setNotice('The microphone is blocked. Allow it in your browser’s address bar, or type below.');
+        setNotice('The microphone is blocked. Click the lock or mic icon in the address bar, allow the microphone, then tap again. Or type below.');
       } else {
         setState('idle');
-        setNotice('Voice stopped. Tap to talk again.');
+        setNotice(e instanceof SpeechError ? `${e.message} You can type below.` : 'Voice stopped. Tap to talk again.');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,7 +214,10 @@ export default function Talk() {
   const handle = useCallback(
     async (raw: string, id = ++run.current) => {
       const text = raw.trim();
-      if (!text) return;
+      if (!text) {
+        setState('idle');
+        return;
+      }
 
       // Voice commands that don't need a reply
       if (STOP_WORDS.test(text)) {
@@ -214,8 +229,9 @@ export default function Talk() {
       }
       const lastReply = Object.entries(repliesRef.current).sort((a, b) => Number(b[0]) - Number(a[0]))[0]?.[1];
       // "Start" after a spare-minutes plan opens its first step
-      if (START_WORDS.test(text) && lastReply?.steps?.[0]) {
-        openRef.current?.(lastReply.steps[0].href);
+      const startHref = lastReply?.steps?.[0]?.href ?? lastReply?.open?.href;
+      if (START_WORDS.test(text) && startHref) {
+        openRef.current?.(startHref);
         return;
       }
       if (PLAY_WORDS.test(text) && lastReply?.podcasts?.[0]?.episode?.audioUrl) {
@@ -233,7 +249,7 @@ export default function Talk() {
       setConvo(withYou);
       setState('thinking');
 
-      const reply = await respond(text, { userId, plan: planContext, goal: goal?.title ?? null, history: withYou.turns, addTask, spare: { dueCards, weakSpots, jobs: loopJobs } });
+      const reply = await respond(text, { userId, plan: planContext, goal: goal?.title ?? null, history: withYou.turns, addTask, spare: { dueCards, weakSpots, jobs: loopJobs }, agenda });
       if (run.current !== id) return;
 
       const ropi: Turn = { role: 'ropi', text: reply.text, at: new Date().toISOString(), kind: `${reply.intent}:${reply.topic ?? ''}`, sources: reply.sources };
@@ -253,10 +269,15 @@ export default function Talk() {
         navigate(reply.open.href);
         return;
       }
-      if (prefRef.current.handsFree && support.stt && !prefRef.current.muted) void listenRef.current?.();
-      else setState('idle');
+      // A short pause so the mic doesn't catch the end of Ropi's own voice from the speakers
+      if (prefRef.current.handsFree && support.stt && !prefRef.current.muted) {
+        setState('listening');
+        setTimeout(() => {
+          if (run.current === id) void listenRef.current?.();
+        }, 350);
+      } else setState('idle');
     },
-    [userId, planContext, goal, addTask, persist, say, navigate, support.stt, dueCards, weakSpots, loopJobs]
+    [userId, planContext, goal, addTask, persist, say, navigate, support.stt, dueCards, weakSpots, loopJobs, agenda]
   );
   // listen() and handle() call each other: go through refs so neither holds stale state
   const handleRef = useRef(handle);
@@ -282,15 +303,19 @@ export default function Talk() {
   const openRef = useRef(open);
   openRef.current = open;
 
-  // Opened with ?q= (e.g. from a topic folder): ask it straight away
+  // Opened with ?q= (Plan by voice, a topic folder, a home-screen shortcut): ask it straight away.
+  // Deferred one tick: in development React mounts, unmounts and remounts once, and the unmount
+  // cancels any reply in flight, so asking during the first mount used to leave Ropi "working on it" forever.
   const asked = useRef(false);
   useEffect(() => {
     const q = params.get('q');
-    if (q && !asked.current && userId) {
+    if (!q || asked.current || !userId) return;
+    const t = setTimeout(() => {
       asked.current = true;
-      void handle(q);
-    }
-  }, [params, userId, handle]);
+      void handleRef.current?.(q);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [params, userId]);
 
   const stop = () => {
     run.current++;
@@ -625,6 +650,32 @@ function ReplyExtras({
             </li>
           ))}
         </ol>
+      )}
+
+      {reply.agenda && reply.agenda.length > 0 && (
+        <div className="overflow-hidden rounded-xl border bg-card">
+          {reply.agenda.map((d) => (
+            <div key={d.name} className="border-b last:border-b-0">
+              {reply.agenda!.length > 1 && <div className="px-3 pt-2.5 text-[11.5px] font-semibold text-muted-foreground">{d.name}</div>}
+              <ul>
+                {d.items.map((i) => (
+                  <li key={i.id}>
+                    <button
+                      disabled={!i.href}
+                      onClick={() => i.href && onOpen(i.href)}
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] transition-colors enabled:hover:bg-muted/60"
+                    >
+                      <span className="w-16 shrink-0 tabular-nums text-muted-foreground">{sayTime(i.start)}</span>
+                      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', i.kind === 'busy' ? 'bg-muted-foreground/40' : i.category === 'career' ? 'bg-foreground' : 'bg-primary')} aria-hidden="true" />
+                      <span className={cn('min-w-0 flex-1 truncate', i.kind === 'busy' && 'text-muted-foreground')}>{i.title}</span>
+                      <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">{i.minutes} min</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
 
       {reply.open && !reply.steps?.length && (

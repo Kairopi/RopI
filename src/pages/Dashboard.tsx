@@ -1,16 +1,19 @@
 /**
- * Today - the answer to "what do I do with the time I have, and why?"
+ * Today - for someone with a full life and five minutes to spare.
  *
- * Got a few minutes (dead time, right now), then the next block in your plan + add,
- * what you did in the last 7 days, then the week (click any empty time to add to it).
- * Every section below the fold can be collapsed.
+ * Three questions, in the order a busy person asks them:
+ *   1. Got a few minutes? What's worth doing right now (the spare-minutes picker).
+ *   2. What's my day? Today's plan as one short list, with Start on the first
+ *      thing and a line to add something. "Hear my day" reads it out loud;
+ *      "Plan by voice" opens Talk on "Plan my day".
+ *   3. Am I growing? The last 7 days.
+ * The week calendar sits below for when you want the whole picture.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { motion } from 'framer-motion';
-import { ArrowRight, Plus, CheckCircle2 } from '@/components/icons';
+import { ArrowRight, Plus, Mic, Volume2, Pause, CheckCircle2 } from '@/components/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import WeekCanvas, { WeekLegend, weekRangeLabel } from '../components/WeekCanvas';
 import { PageHeader } from '../components/PageHeader';
@@ -26,21 +29,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useWeek } from '@/hooks/useWeek';
 import { usePlan } from '@/hooks/usePlan';
+import { useLoop } from '@/hooks/useLoop';
+import { useAgenda } from '@/hooks/useAgenda';
+import { dayBrief, sayDuration, sayTime, type AgendaDay, type AgendaItem } from '@/lib/coach/brief';
+import { speechManager } from '@/lib/voice/speech-manager';
 import { scheduledMinutes, weeklyFreeMinutes } from '@/lib/scheduling/plan';
-import type { Task, TimeBlock } from '@/lib/scheduling/types';
-
-
-const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-
-function dayLabel(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(today.getDate() + 1);
-  if (d.toDateString() === today.toDateString()) return d.getHours() >= 17 ? 'Tonight' : 'Today';
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
+import { cn } from '@/lib/utils';
 
 const hours = (min: number) => Math.round((min / 60) * 10) / 10;
 
@@ -51,27 +45,28 @@ export default function Dashboard() {
   const week = useWeek();
   const { lastRecalculatedAt } = useSchedule();
   const { plan } = usePlan();
+  const agenda = useAgenda();
+  const dueCards = useLoop((s) => s.dueCards);
   const [item, setItem] = useState<WeekItem | null>(null);
 
-  const tasksById = useMemo(() => new Map(plan.tasks.map((t) => [t.id, t])), [plan.tasks]);
-  const upcoming = useMemo(() => {
-    const now = Date.now();
-    return [...plan.schedule.blocks]
-      .filter((b) => new Date(b.endTime).getTime() > now)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [plan.schedule.blocks]);
-  const next = upcoming[0];
-  const nextTask = next ? tasksById.get(next.taskId) : undefined;
-
+  const today = agenda.days[0];
   const plannedH = hours(scheduledMinutes(plan.schedule));
   const freeH = hours(weeklyFreeMinutes(week.windows));
   const atRisk = plan.schedule.atRiskTasks.length;
+
+  // Got a few minutes? says when an item is also planned later today, so it reads as a choice, not a repeat
+  const plannedAt = useMemo(() => {
+    const at = (src: string) => today?.items.find((i) => i.source === src);
+    const r = at('reviews');
+    const w = at('weak-spot');
+    return { reviews: r ? sayTime(r.start) : undefined, weak: w ? sayTime(w.start) : undefined };
+  }, [today]);
 
   const greeting = (() => {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   })();
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const daysLeft = week.goal?.targetDate
     ? Math.ceil((new Date(week.goal.targetDate + 'T23:59:59').getTime() - Date.now()) / 86_400_000)
     : null;
@@ -93,18 +88,18 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       {week.isSample && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning/[0.08] px-4 py-2.5">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning/[0.08] px-4 py-2">
           <p className="text-[13px] text-warning-ink">
             <span className="font-semibold">Sample week.</span> Tasks and free time are made up. Quizzes, reviews and jobs are real.
           </p>
-          <Button size="sm" variant="outline" className="bg-card" onClick={() => { week.clear(); navigate('/setup'); }}>
+          <Button size="sm" variant="ghost" className="h-7 text-warning-ink hover:bg-warning/10" onClick={() => { week.clear(); navigate('/setup'); }}>
             Set up my own week
           </Button>
         </div>
       )}
 
       <PageHeader
-        eyebrow={today}
+        eyebrow={dateLabel}
         title={
           <>
             {greeting}
@@ -119,28 +114,21 @@ export default function Dashboard() {
             </>
           ) : undefined
         }
-        actions={
-          <Button variant="outline" onClick={() => navigate('/schedule')}>
-            Something changed?
-          </Button>
-        }
+        actions={<HearMyDay days={agenda.days} dueCards={dueCards} deadlines={agenda.deadlines} atRiskTitles={agenda.atRiskTitles} />}
       />
 
-      <SpareMinutes className="mb-6" />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-        <div className="flex flex-col gap-6">
-          <UpNext block={next} task={nextTask} after={upcoming.slice(1, 3)} tasksById={tasksById} hasFreeTime={week.windows.length > 0} />
-          <QuickAdd />
-        </div>
-        <div className="flex flex-col gap-6">
-          <CheckIn />
-          {/* What you actually did */}
-          <WeekInReview userId={userId} />
-        </div>
+      <div className="mb-6 empty:hidden">
+        <CheckIn />
       </div>
 
-      {/* The week: click empty time to add, a block to see it */}
+      <SpareMinutes className="mb-6" plannedAt={plannedAt} />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start">
+        <YourDay days={agenda.days} hasFreeTime={week.windows.length > 0} />
+        <WeekInReview userId={userId} />
+      </div>
+
+      {/* The whole week: click empty time to add, a block to see it */}
       <Panel
         id="today-week"
         className="mt-6"
@@ -182,20 +170,64 @@ export default function Dashboard() {
   );
 }
 
-/** The next block in your plan: one compact card, the reason, and Start */
-function UpNext({
-  block,
-  task,
-  after,
-  tasksById,
-  hasFreeTime,
+/** "Hear my day": Ropi reads today out loud, right here. "Plan by voice" continues in Talk. */
+function HearMyDay({
+  days,
+  dueCards,
+  deadlines,
+  atRiskTitles,
 }: {
-  block?: TimeBlock;
-  task?: Task;
-  after: TimeBlock[];
-  tasksById: Map<string, Task>;
-  hasFreeTime: boolean;
+  days: AgendaDay[];
+  dueCards: number;
+  deadlines: { title: string; at: string }[];
+  atRiskTitles: string[];
 }) {
+  const navigate = useNavigate();
+  const [speaking, setSpeaking] = useState(false);
+  const canSpeak = speechManager.getSupport().tts;
+  useEffect(() => () => speechManager.stopSpeaking(), []);
+
+  const toggle = async () => {
+    if (speaking) {
+      speechManager.stopSpeaking();
+      setSpeaking(false);
+      return;
+    }
+    setSpeaking(true);
+    const { text } = dayBrief(days, { dueCards, deadlines, atRiskTitles });
+    let pref: { voice?: string; rate?: number } = {};
+    try {
+      pref = JSON.parse(localStorage.getItem('ropi-voice-v1') ?? '{}');
+    } catch {
+      // defaults
+    }
+    const voice = (await speechManager.getVoices()).find((v) => v.name === pref.voice);
+    try {
+      await speechManager.speak(text, { rate: pref.rate ?? 1, ...(voice ? { voice } : {}) });
+    } catch {
+      // no voice output: nothing else to do, the day is on screen
+    }
+    setSpeaking(false);
+  };
+
+  return (
+    <>
+      {canSpeak && (
+        <Button variant="outline" onClick={toggle} aria-pressed={speaking}>
+          {speaking ? <Pause /> : <Volume2 />}
+          {speaking ? 'Stop' : 'Hear my day'}
+        </Button>
+      )}
+      <Button variant="ghost" onClick={() => navigate(`/talk?q=${encodeURIComponent('Plan my day')}`)}>
+        <Mic />
+        Plan by voice
+      </Button>
+    </>
+  );
+}
+
+/** Today's plan as one short list: time, what, how long. Start on the first; add a line at the bottom. */
+function YourDay({ days, hasFreeTime }: { days: AgendaDay[]; hasFreeTime: boolean }) {
   const navigate = useNavigate();
   const checkIn = useWeek((s) => s.checkIn);
   const [now, setNow] = useState(Date.now());
@@ -204,80 +236,106 @@ function UpNext({
     return () => clearInterval(t);
   }, []);
 
-  if (!block || !task) {
-    return (
-      <Card className="p-5">
-        <div className="text-[12.5px] font-medium text-muted-foreground">Next in your plan</div>
-        <h2 className="mt-1.5 text-[17px] font-semibold leading-snug">{hasFreeTime ? 'Nothing planned yet' : 'Tell Ropi when you’re free'}</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          {hasFreeTime ? 'Add something below, or take a quiz so Ropi knows what to practise.' : 'Ropi only plans inside your free time.'}
-        </p>
-        <Button size="sm" className="mt-4" onClick={() => navigate(hasFreeTime ? '/quiz/quiz-1' : '/setup')}>
-          {hasFreeTime ? 'Take a 2-minute quiz' : 'Set my free time'}
-          <ArrowRight />
-        </Button>
-      </Card>
-    );
-  }
-
-  const start = new Date(block.startTime).getTime();
-  const end = new Date(block.endTime).getTime();
-  const live = now >= start && now < end;
-  const mins = Math.round((end - start) / 60000);
-  const dot = (t: Task) => (t.category === 'learning' ? 'bg-primary' : t.category === 'career' ? 'bg-foreground' : 'bg-muted-foreground/50');
+  const today = days[0];
+  const items = today?.items ?? [];
+  const tasks = items.filter((i) => i.kind === 'task');
+  const next = days.slice(1).find((d) => d.items.some((i) => i.kind === 'task'));
+  const firstTask = tasks[0];
+  const part = firstTask ? (new Date(firstTask.start).getHours() >= 17 ? 'Tonight' : 'Today') : 'Today';
 
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between gap-3 text-[12.5px]">
-        <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
-          {live && <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />}
-          {live ? 'Happening now' : 'Next in your plan'}
-        </span>
-        <span className="tabular-nums text-muted-foreground">
-          {dayLabel(block.startTime)} {fmtTime(block.startTime)} · {mins} min
-        </span>
+    <Card className="overflow-hidden">
+      <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-5 sm:px-6">
+        <div>
+          <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Your day</h2>
+          <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+            {tasks.length
+              ? `${part} · ${tasks.length} thing${tasks.length === 1 ? '' : 's'} · ${sayDuration(today.plannedMinutes).replace(/ minutes?/, ' min').replace(/ hours?/, 'h')}`
+              : hasFreeTime
+                ? 'Nothing else planned today'
+                : 'Ropi plans inside your free time'}
+          </p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => navigate('/schedule')}>
+          Something changed?
+        </Button>
       </div>
 
-      <div className="mt-2 flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <motion.h2 key={task.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-[18px] font-semibold leading-snug">
-            {task.title}
-          </motion.h2>
-          {task.why && <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">{task.why}</p>}
-          {!task.why && task.deadline && (
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Due {task.deadline.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-            </p>
+      {items.length > 0 ? (
+        <ol className="px-2 pb-2 sm:px-3" aria-label="Today's plan">
+          {items.map((i) => (
+            <DayRow
+              key={i.id}
+              item={i}
+              live={now >= new Date(i.start).getTime() && now < new Date(i.end).getTime()}
+              first={i === firstTask}
+              onOpen={() => i.href && navigate(i.href)}
+              onDone={() => i.taskId && checkIn(i.taskId, 'done')}
+            />
+          ))}
+        </ol>
+      ) : (
+        <div className="mx-5 mb-4 rounded-xl border border-dashed px-4 py-4 text-[13px] text-muted-foreground sm:mx-6">
+          {!hasFreeTime ? (
+            <>
+              Tell Ropi when you’re usually free and it plans around it.{' '}
+              <button className="font-medium text-primary hover:underline" onClick={() => navigate('/setup')}>
+                Set my free time
+              </button>
+            </>
+          ) : next ? (
+            <>
+              <span className="font-medium text-foreground">{next.name}:</span> {next.items.find((x) => x.kind === 'task')!.title} at{' '}
+              {sayTime(next.items.find((x) => x.kind === 'task')!.start)}.
+            </>
+          ) : (
+            'Your week is clear. Add something below, or take a quiz so Ropi knows what to practise.'
           )}
         </div>
-        {task.href ? (
-          <Button size="sm" className="shrink-0" onClick={() => navigate(task.href!)}>
-            Start
-            <ArrowRight />
-          </Button>
-        ) : (
-          <Button size="sm" variant="outline" className="shrink-0" onClick={() => checkIn(task.id, 'done')}>
-            <CheckCircle2 />
-            Mark done
-          </Button>
-        )}
-      </div>
-
-      {after.length > 0 && (
-        <ul className="mt-4 space-y-1 border-t pt-3">
-          {after.map((b) => {
-            const t = tasksById.get(b.taskId);
-            if (!t) return null;
-            return (
-              <li key={b.id} className="flex items-center gap-2.5 text-[12.5px] text-muted-foreground">
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot(t)}`} aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate text-foreground/80">{t.title}</span>
-                <span className="shrink-0 tabular-nums">{fmtTime(b.startTime)}</span>
-              </li>
-            );
-          })}
-        </ul>
       )}
+
+      <div className="border-t px-5 py-4 sm:px-6">
+        <QuickAdd title={null} className="border-0 bg-transparent p-0" />
+      </div>
     </Card>
+  );
+}
+
+function DayRow({ item, live, first, onOpen, onDone }: { item: AgendaItem; live: boolean; first: boolean; onOpen: () => void; onDone: () => void }) {
+  const busy = item.kind === 'busy';
+  const dot = busy ? 'bg-muted-foreground/40' : item.category === 'career' ? 'bg-foreground' : item.category === 'learning' ? 'bg-primary' : 'bg-muted-foreground/60';
+  return (
+    <li>
+      <div className={cn('group flex items-center gap-3 rounded-lg px-3 py-2.5', first && 'bg-muted/50', !busy && !first && 'hover:bg-muted/40')}>
+        <span className={cn('w-[58px] shrink-0 text-[12.5px] tabular-nums sm:w-[68px]', first ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+          {live ? 'Now' : sayTime(item.start)}
+        </span>
+        <span className={cn('h-2 w-2 shrink-0 rounded-full', dot)} aria-hidden="true" />
+        <button
+          className={cn('min-w-0 flex-1 text-left', busy && 'cursor-default')}
+          onClick={busy ? undefined : onOpen}
+          disabled={busy || !item.href}
+        >
+          <span className={cn('block truncate', first ? 'text-[14.5px] font-semibold' : 'text-[13.5px]', busy && 'text-muted-foreground')}>
+            {item.title}
+            {busy && <span className="ml-1.5 text-[11.5px]">· busy</span>}
+          </span>
+          {first && item.why && <span className="mt-0.5 block line-clamp-1 text-[12px] text-muted-foreground">{item.why}</span>}
+        </button>
+        <span className={cn('shrink-0 text-[12px] tabular-nums text-muted-foreground', first && 'hidden sm:inline')}>{item.minutes} min</span>
+        {first &&
+          (item.href ? (
+            <Button size="sm" className="shrink-0" onClick={onOpen}>
+              Start
+              <ArrowRight />
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="shrink-0" onClick={onDone}>
+              <CheckCircle2 />
+              Mark done
+            </Button>
+          ))}
+      </div>
+    </li>
   );
 }

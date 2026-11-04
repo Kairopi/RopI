@@ -19,6 +19,7 @@ import Setup from './pages/Setup'
 import Activity from './pages/Activity'
 import Talk from './pages/Talk'
 import Topic from './pages/Topic'
+import Document from './pages/Document'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -149,6 +150,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Talk />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/learn/doc/:id"
+              element={
+                <ProtectedRoute>
+                  <Document />
                 </ProtectedRoute>
               }
             />

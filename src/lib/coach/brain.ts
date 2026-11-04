@@ -10,6 +10,8 @@
  *      quiz      starts a hands-free voice quiz on the topic
  *      plan      your plan, quiz history and cards, cited (Ask Ropi)
  *      spare     "I have 10 minutes on the train": the best use of that time, from your data
+ *      day       "what do I have today?", "plan my day": reads your day from the plan itself
+ *      week      "read me my week": the next 7 days, day by day
  *      add       adds a task to your week (Ropi finds the time)
  *      jobs      searches the 5 job sources
  *      cv        tailors your resume for your latest saved job (you review it)
@@ -28,8 +30,9 @@ import { getBaseResume, getUserJobs, tailorResumeForJob } from '@/lib/jobs/job-s
 import { parseQuickAdd } from '@/lib/week/quick-add';
 import type { Turn } from '@/lib/library/store';
 import { parseSpareRequest, planSpareTime, speakPlan, type SpareInput, type SpareStep } from '@/lib/spare/plan';
+import { dayBrief, weekBrief, type AgendaDay, type AgendaItem } from './brief';
 
-export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'plan' | 'spare' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'chat';
+export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'day' | 'week' | 'plan' | 'spare' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'chat';
 
 export interface Routed {
   intent: Intent;
@@ -56,6 +59,8 @@ export interface Reply {
   draft?: string;
   /** What to do with the minutes you have, in order */
   steps?: SpareStep[];
+  /** The day (or days) Ropi just read out */
+  agenda?: { name: string; items: AgendaItem[] }[];
 }
 
 export interface CoachContext {
@@ -65,6 +70,8 @@ export interface CoachContext {
   history: Turn[];
   /** What the learning and job loops know (due cards, weak spots, jobs) */
   spare?: Pick<SpareInput, 'dueCards' | 'weakSpots' | 'jobs'>;
+  /** The next 7 days from the plan, for "read me my day / week" */
+  agenda?: { days: AgendaDay[]; freeMinutes: number; atRiskTitles: string[]; deadlines: { title: string; at: string }[] };
   addTask: (t: { title: string; duration: number; priority: 'P1' | 'P2' | 'P3'; deadline?: string; category: 'learning' | 'career' | 'life'; tags?: string[] }) => void;
 }
 
@@ -87,6 +94,8 @@ const RULES: [Intent, RegExp][] = [
   ['podcast', /\b(podcasts?|listen to|something to listen)\b/i],
   ['news', /\b(news|latest|what'?s new|what is new|recent(ly)?|this week in|updates? on)\b/i],
   ['quiz', /\b(quiz|test me|ask me (some )?questions|practice questions)\b/i],
+  ['week', /\b(read (me )?my week|(what'?s|what is|what do i have)( on)?( for)? (this|the) week|my week|(this|the) week ahead|week look like)\b/i],
+  ['day', /\b(read (me )?my (day|today)|plan my (day|today|evening)|(what'?s|what is)( on)?( for)? (today|tonight)|what do i have( on)?( for)? (today|tonight)|my day|today'?s plan|(what'?s|what is) the plan for (today|tonight)|day look like)\b/i],
   ['add', /\b(remind me|add (a )?task|add .* to my (week|plan|list)|i need to|i have to|put .* in my (week|plan))\b/i],
   ['plan', /\b(what should i (do|study)|what'?s next|(what'?s|plan for) (today|tonight)|my (plan|week|day|schedule)|weak(est)?|struggl|getting wrong|how am i doing|progress)\b/i],
   ['explain', /\b(what (does|is|are|do)|what'?s|explain|mean(s|ing)?|i('?m| am) (lost|confused|stuck)|don'?t (get|understand)|how (does|do|is)|why (does|is|do))\b/i],
@@ -129,7 +138,9 @@ intents:
 - podcast: something to listen to
 - quiz: they want to be quizzed / tested
 - spare: they say how much time they have or where they are (commute, waiting, getting dressed) and want the best use of it, without asking for one specific thing
-- plan: what to do today, their progress, what they get wrong
+- day: what they have today, read their day, plan their day
+- week: what they have this week, read their week
+- plan: what they should focus on, their progress, what they get wrong
 - add: add a task or reminder to their week
 - jobs: find jobs (role + optional place)
 - cv: create / tailor / improve their CV or resume
@@ -142,9 +153,12 @@ Return ONLY JSON:
       { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 1500, timeoutMs: 12000 }
     );
     const j = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw);
-    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'plan', 'spare', 'add', 'jobs', 'cv', 'form', 'apply', 'chat'];
+    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'day', 'week', 'plan', 'spare', 'add', 'jobs', 'cv', 'form', 'apply', 'chat'];
     if (!intents.includes(j.intent)) return routeWithRules(text);
     if ((j.intent === 'plan' || j.intent === 'chat') && parseSpareRequest(text)) j.intent = 'spare';
+    // "Plan my day" / "read me my week" are read straight from the plan: never send them to a long answer
+    const ruled = routeWithRules(text).intent;
+    if ((ruled === 'day' || ruled === 'week') && (j.intent === 'plan' || j.intent === 'chat' || j.intent === 'add')) j.intent = ruled;
     const minutes = Number(j.task?.minutes);
     return {
       intent: j.intent,
@@ -311,6 +325,9 @@ Return ONLY JSON: {"answer": "..."}`,
 
 export async function respond(text: string, ctx: CoachContext): Promise<Reply> {
   const r = await route(text, ctx);
+  // Right after Ropi read your day, "gym prep 30 minutes tomorrow" means "add it"
+  const lastKind = ctx.history.slice().reverse().find((t) => t.role === 'ropi')?.kind ?? '';
+  if ((r.intent === 'chat' || r.intent === 'plan') && /^(day|week|add):/.test(lastKind) && (parseQuickAdd(text)?.tokens.length ?? 0) > 0) r.intent = 'add';
   const topic = r.topic ?? ctx.history.slice().reverse().find((t) => t.kind && t.role === 'ropi')?.kind?.split(':')[1] ?? null;
   try {
     switch (r.intent) {
@@ -336,6 +353,32 @@ export async function respond(text: string, ctx: CoachContext): Promise<Reply> {
         const t = topic ?? ctx.goal;
         if (!t) return { intent: 'quiz', topic: null, text: 'Happy to. Which topic should I quiz you on?' };
         return { intent: 'quiz', topic: t, text: `Okay, a quick voice quiz on ${t}. I'll read each question and you just say the letter.`, open: { label: `Start the ${t} quiz`, href: `/voice-quiz?quiz=new&topic=${encodeURIComponent(t)}&start=1`, auto: true } };
+      }
+      case 'day':
+      case 'week': {
+        const a = ctx.agenda;
+        if (!a) return await plan(text, ctx);
+        const planning = /\bplan\b/i.test(text);
+        const close = planning
+          ? 'Anything else to fit in? Just say it, like: read chapter 4 for 30 minutes by Friday.'
+          : 'Want me to start the first one?';
+        if (r.intent === 'week') {
+          return {
+            intent: 'week',
+            topic: null,
+            text: weekBrief(a.days, { freeMinutes: a.freeMinutes, atRiskTitles: a.atRiskTitles, close: planning ? close : undefined }),
+            agenda: a.days.filter((d) => d.items.length).map((d) => ({ name: d.name, items: d.items })),
+          };
+        }
+        const b = dayBrief(a.days, { dueCards: ctx.spare?.dueCards, deadlines: a.deadlines, atRiskTitles: a.atRiskTitles, close });
+        const first = b.day?.items.find((i) => i.kind === 'task' && i.href);
+        return {
+          intent: 'day',
+          topic: null,
+          text: b.text,
+          agenda: b.day ? [{ name: b.day.name, items: b.day.items }] : [],
+          open: first && !planning ? { label: `Start: ${first.title}`, href: first.href! } : undefined,
+        };
       }
       case 'plan':
         return await plan(text, ctx);

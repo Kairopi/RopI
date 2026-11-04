@@ -2,7 +2,7 @@
 
 The story: **turn dead time into growth time.** People who moved abroad, are changing careers, or are studying for a certification while job hunting don't get free evenings. They get 5 minutes on the platform and 20 on the bus. Ropi makes those minutes count, and keeps the bigger plan moving when the week changes.
 
-Every step below is a flow the end-to-end tests run against the live app (`spare-e2e`, `e2e-browser`, `talk-e2e`, `upload-e2e`, `jobs-e2e`, `history-e2e`). Times in brackets are what those runs measured, so you know where to cut. Say only what's on screen.
+Every step below is a flow the end-to-end tests run against the live app (`today-e2e`, `spare-e2e`, `e2e-browser`, `talk-e2e`, `upload-e2e`, `jobs-e2e`, `history-e2e`). Times in brackets are what those runs measured, so you know where to cut. Say only what's on screen.
 
 ## Before you record
 
@@ -27,7 +27,9 @@ Every step below is a flow the end-to-end tests run against the live app (`spare
 1. Pick **5 min**. Ropi shows one thing that fits, and why.
 2. Pick **10 min** and **Audio only**. The list changes to things Ropi can say out loud: a voice quiz and a news brief, nothing that needs the screen.
 
-> "I tell it how long I have and whether I can look at my phone. It picks what's worth it, from my own data."
+3. Click **Hear my day**. Ropi reads tonight's plan out loud from **Your day**, the short list below.
+
+> "I tell it how long I have and whether I can look at my phone. It picks what's worth it, from my own data. And on the move, it reads me my day."
 
 ### 0:40 to 1:10. It learns what I'm missing
 
@@ -43,9 +45,10 @@ Every step below is a flow the end-to-end tests run against the live app (`spare
 
 **Screen:** Talk. Use the mic.
 
-1. Say: "I'm getting dressed, I have five minutes." Ropi answers out loud with a plan: first it explains cold starts, the one you missed. [About 3 s]
-2. Say "start". Ropi explains it in plain English and asks one question to check. Answer it out loud.
-3. Optional if time allows: "A podcast on AWS under 15 minutes" picks an episode that fits, and plays it right there.
+1. Say: "Plan my day." Ropi reads the day, then asks what else to fit in. Say: "Read chapter 4 for 30 minutes by Friday." It lands in the week.
+2. Say: "I'm getting dressed, I have five minutes." Ropi answers out loud with a plan: first it explains cold starts, the one you missed. [About 3 s]
+3. Say "start". Ropi explains it in plain English and asks one question to check. Answer it out loud.
+4. Optional if time allows: "A podcast on AWS under 15 minutes" picks an episode that fits, and plays it right there.
 
 > "No typing, no looking. And every conversation is saved under its topic with the time."
 

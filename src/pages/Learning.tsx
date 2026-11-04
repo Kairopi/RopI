@@ -31,6 +31,7 @@ import { useLearningStats } from '@/hooks/useLearningStats';
 import { useLoop } from '@/hooks/useLoop';
 import { BUILT_IN_QUIZ_LIST } from '@/lib/mock/quizzes';
 import { cn } from '@/lib/utils';
+import { loadFolders } from '@/lib/library/topics';
 
 type Level = 'beginner' | 'intermediate' | 'advanced';
 // The generators use easy/medium/hard
@@ -68,12 +69,15 @@ export default function Learning() {
   // Uploaded PDF/DOCX: saved as a quotable source
   const [lastDoc, setLastDoc] = useState<ParsedDocument | null>(null);
   const [savingSource, setSavingSource] = useState(false);
-  const [savedSource, setSavedSource] = useState<{ id: string; chunks: number } | null>(null);
+  const [savedSource, setSavedSource] = useState<{ id: string; chunks: number; folder: string } | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
   const [sourcesAvailable, setSourcesAvailable] = useState(true);
 
   const [guides, setGuides] = useState<StudyGuideDB[] | null>(null);
+  // Which folder an uploaded document goes in ('' = a new folder named after the file)
+  const [docFolder, setDocFolder] = useState('');
+  const [folderNames, setFolderNames] = useState<string[]>([]);
 
   const refreshSources = () =>
     listSources()
@@ -88,6 +92,9 @@ export default function Learning() {
     fetchStudyGuides(userId)
       .then(setGuides)
       .catch(() => setGuides([]));
+    loadFolders(userId)
+      .then((f) => setFolderNames(f.map((x) => x.topic)))
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
@@ -108,13 +115,13 @@ export default function Learning() {
       const title = doc.fileName.replace(/\.(pdf|docx?)$/i, '');
       const { source, chunks, existing } = await saveSource({
         title,
-        topic: title,
+        topic: docFolder || title,
         fileName: doc.fileName,
         fileType: doc.fileType,
         text: doc.text,
         pages: doc.pages,
       });
-      setSavedSource({ id: source.id, chunks });
+      setSavedSource({ id: source.id, chunks, folder: source.topic || title });
       if (!existing) refreshSources();
     } catch (e) {
       setSourceError(e instanceof Error ? e.message : 'Could not save the document');
@@ -310,6 +317,24 @@ export default function Learning() {
           </form>
         ) : (
           <div className="mt-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+              <label htmlFor="doc-folder" className="text-muted-foreground">
+                Put it in
+              </label>
+              <select
+                id="doc-folder"
+                value={docFolder}
+                onChange={(e) => setDocFolder(e.target.value)}
+                className="h-8 rounded-lg border bg-background px-2 text-[13px]"
+              >
+                <option value="">A new folder (named after the file)</option>
+                {folderNames.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
             <DocumentUpload onDocumentParsed={handleDocumentParsed} compact />
             {lastDoc ? (
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border bg-background p-3.5">
@@ -320,8 +345,16 @@ export default function Learning() {
                     {savingSource
                       ? 'Saving it so quiz questions can quote it...'
                       : savedSource
-                        ? `Saved · ${savedSource.chunks} passage${savedSource.chunks === 1 ? '' : 's'} Ropi can quote`
+                        ? `Saved in ${savedSource.folder} · ${savedSource.chunks} passage${savedSource.chunks === 1 ? '' : 's'} Ropi can quote`
                         : sourceError ?? ''}
+                    {savedSource && (
+                      <>
+                        {' · '}
+                        <button className="font-medium text-primary hover:underline" onClick={() => navigate(`/learn/doc/${savedSource.id}`)}>
+                          Read it
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <Button size="sm" disabled={!savedSource} onClick={() => savedSource && navigate(`/quiz/new?source=${savedSource.id}`)}>
@@ -454,8 +487,8 @@ export default function Learning() {
           <ul className="divide-y overflow-hidden rounded-xl border bg-card">
             {sources.slice(0, 8).map((s) => (
               <li key={s.id} className="flex items-center gap-3 px-3.5 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-medium">{s.title}</div>
+                <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/learn/doc/${s.id}`)}>
+                  <div className="truncate text-[13px] font-medium hover:text-primary">{s.title}</div>
                   {s.summary && <div className="truncate text-[12px] text-muted-foreground">{s.summary}</div>}
                   <div className="mt-1 flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground">
                     {(s.tags ?? []).slice(0, 4).map((tag) => (
@@ -466,9 +499,10 @@ export default function Learning() {
                     <span>
                       {s.page_count ? `${s.page_count} page${s.page_count === 1 ? '' : 's'} · ` : ''}
                       {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {s.topic && s.topic !== s.title ? ` · in ${s.topic}` : ''}
                     </span>
                   </div>
-                </div>
+                </button>
                 <Button size="sm" variant="ghost" onClick={() => navigate(`/quiz/new?source=${s.id}`)}>
                   Quiz me
                 </Button>

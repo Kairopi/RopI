@@ -26,7 +26,7 @@ const load = (): { minutes: number; mode: SpareMode } => {
   }
 };
 
-export function SpareMinutes({ className }: { className?: string }) {
+export function SpareMinutes({ className, plannedAt }: { className?: string; plannedAt?: { reviews?: string; weak?: string } }) {
   const navigate = useNavigate();
   const reduce = useReducedMotion();
   const [params, setParams] = useSearchParams();
@@ -59,10 +59,17 @@ export function SpareMinutes({ className }: { className?: string }) {
     localStorage.setItem(PREF, JSON.stringify(pref));
   }, [pref]);
 
-  const plan = useMemo(
-    () => planSpareTime({ minutes: pref.minutes, mode: pref.mode, dueCards, weakSpots, jobs, goal }),
-    [pref, dueCards, weakSpots, jobs, goal]
-  );
+  const plan = useMemo(() => {
+    const p = planSpareTime({ minutes: pref.minutes, mode: pref.mode, dueCards, weakSpots, jobs, goal });
+    // Also on today's plan? Say so: doing it now is a choice that frees that time, not a repeat
+    const why = (id: string) =>
+      id === 'reviews' && plannedAt?.reviews
+        ? `Planned for ${plannedAt.reviews}. Do it now and that time frees up.`
+        : /weak|voice-quiz/.test(id) && weakSpots.length && plannedAt?.weak
+          ? `You practise it at ${plannedAt.weak}. This is a head start.`
+          : null;
+    return { ...p, steps: p.steps.map((s) => (why(s.id) ? { ...s, why: why(s.id)! } : s)) };
+  }, [pref, dueCards, weakSpots, jobs, goal, plannedAt]);
 
   return (
     <section aria-labelledby="spare-title" className={cn('rounded-2xl border bg-card p-5 sm:p-6', className)}>

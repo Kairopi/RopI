@@ -239,3 +239,59 @@ export async function pickChunks(sourceId: string, focus?: string, k = 6): Promi
   const step = all.length / k;
   return Array.from({ length: k }, (_, i) => all[Math.floor(i * step)]);
 }
+
+/** One document with its full text, for reading it in Ropi */
+export interface SourceText {
+  source: Source;
+  /** The text in reading order, split where pages change (chunk overlap removed) */
+  passages: { page: number | null; text: string }[];
+}
+
+/** Words two neighbouring chunks share (chunks overlap ~45 words so quotes never break) */
+function overlapWords(prev: string[], next: string[], max = 80): number {
+  for (let k = Math.min(max, prev.length, next.length); k > 0; k--) {
+    let same = true;
+    for (let i = 0; i < k; i++) {
+      if (prev[prev.length - k + i] !== next[i]) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return k;
+  }
+  return 0;
+}
+
+/** Stitch chunks back into readable text: drop the repeated overlap, start a new passage when the page changes */
+export function stitchChunks(chunks: Pick<Chunk, 'chunk_index' | 'page' | 'content'>[]): SourceText['passages'] {
+  const sorted = [...chunks].sort((a, b) => a.chunk_index - b.chunk_index);
+  const out: SourceText['passages'] = [];
+  let prevWords: string[] = [];
+  for (const c of sorted) {
+    const words = c.content.split(/\s+/).filter(Boolean);
+    const fresh = words.slice(overlapWords(prevWords, words));
+    prevWords = words;
+    if (!fresh.length) continue;
+    const last = out[out.length - 1];
+    if (last && last.page === c.page) last.text += ' ' + fresh.join(' ');
+    else out.push({ page: c.page, text: fresh.join(' ') });
+  }
+  return out;
+}
+
+export async function readSource(id: string): Promise<SourceText | null> {
+  const [s, c] = await Promise.all([
+    supabase.from('sources').select('id, title, topic, file_name, file_type, page_count, char_count, summary, tags, created_at').eq('id', id).maybeSingle(),
+    supabase.from('source_chunks').select('chunk_index, page, content').eq('source_id', id).order('chunk_index'),
+  ]);
+  if (missingTable(s.error) || missingTable(c.error)) throw new SourcesUnavailableError();
+  if (s.error) throw new Error(s.error.message);
+  if (!s.data) return null;
+  return { source: s.data as Source, passages: stitchChunks((c.data ?? []) as Chunk[]) };
+}
+
+/** Put a document in a different folder (folders are matched on the topic name) */
+export async function moveSource(id: string, topic: string): Promise<void> {
+  const { error } = await supabase.from('sources').update({ topic: topic.trim() }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
