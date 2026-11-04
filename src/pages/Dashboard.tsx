@@ -142,7 +142,7 @@ export default function Dashboard() {
               Add
             </Button>
             <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/schedule')}>
-              LifeShift
+              Something changed?
               <ArrowRight />
             </Button>
           </>

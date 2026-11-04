@@ -8,6 +8,7 @@ import Jobs from './pages/Jobs'
 import CV from './pages/CV'
 import Interview from './pages/Interview'
 import Profile from './pages/Profile'
+import Landing from './pages/Landing'
 import JobsKanban from './pages/JobsKanban'
 import LearningHub from './pages/LearningHub'
 import Learning from './pages/Learning'
@@ -205,7 +206,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Landing />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

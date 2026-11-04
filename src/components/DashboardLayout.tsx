@@ -22,6 +22,7 @@ import {
   PanelLeft,
   IdCard,
   Video,
+  ChevronDown,
 } from '@/components/icons';
 
 interface DashboardLayoutProps {
@@ -30,38 +31,34 @@ interface DashboardLayoutProps {
 
 type NavItem = { name: string; href: string; icon: typeof LayoutDashboard; match: string[] };
 
-// The order follows a day: start with today (or talk, when your hands are busy),
-// grow (learn, jobs, your CV), plan around life (what changed, what's on your plate),
-// then look back at what you did. `match` keeps the item lit on its sub-pages.
-const groups: { label: string | null; items: NavItem[] }[] = [
+// Five things up front, in the order a busy day uses them: what to do now, talk hands-free,
+// learn, practise out loud, jobs. The rest sits under "More" (folded) so the menu stays calm.
+// `match` keeps the item lit on its sub-pages.
+const groups: { label: string | null; items: NavItem[]; more?: boolean }[] = [
   {
     label: null,
     items: [
       { name: 'Today', href: '/dashboard', icon: LayoutDashboard, match: ['/dashboard'] },
       { name: 'Talk', href: '/talk', icon: Mic, match: ['/talk'] },
-    ],
-  },
-  {
-    label: 'Grow',
-    items: [
       { name: 'Learn', href: '/learning', icon: GraduationCap, match: ['/learn', '/study-guide', '/quiz', '/voice-quiz', '/reviews'] },
-      { name: 'Jobs', href: '/jobs', icon: Briefcase, match: ['/jobs'] },
       { name: 'Practice', href: '/interview', icon: Video, match: ['/interview'] },
-      { name: 'CV', href: '/cv', icon: IdCard, match: ['/cv'] },
+      { name: 'Jobs', href: '/jobs', icon: Briefcase, match: ['/jobs'] },
     ],
   },
   {
-    label: 'Plan',
+    label: 'More',
+    more: true,
     items: [
-      { name: 'LifeShift', href: '/schedule', icon: CalendarDays, match: ['/schedule'] },
+      { name: 'Your CV', href: '/cv', icon: IdCard, match: ['/cv'] },
+      { name: 'When life changes', href: '/schedule', icon: CalendarDays, match: ['/schedule'] },
       { name: 'Tasks', href: '/tasks', icon: CheckSquare, match: ['/tasks'] },
+      { name: 'History', href: '/history', icon: Clock, match: ['/history', '/activity'] },
     ],
-  },
-  {
-    label: 'Look back',
-    items: [{ name: 'History', href: '/history', icon: Clock, match: ['/history', '/activity'] }],
   },
 ];
+
+/** "More" open or folded, remembered */
+const useMore = create<{ open: boolean; toggle: () => void }>()(persist((set) => ({ open: false, toggle: () => set((s) => ({ open: !s.open })) }), { name: 'ropi-nav-more-v1' }));
 
 const isActiveRoute = (pathname: string, match: string[]) =>
   match.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
@@ -80,17 +77,31 @@ function initials(name: string) {
 function NavList({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const more = useMore();
 
   return (
     <div className="flex flex-col gap-4">
-      {groups.map((g, gi) => (
+      {groups.map((g, gi) => {
+        const activeInside = g.items.some((i) => isActiveRoute(location.pathname, i.match));
+        const shown = !g.more || compact || more.open || activeInside;
+        return (
         <div key={gi}>
           {g.label &&
             (compact ? (
               <div className="mx-auto mb-2 h-px w-6 bg-border" aria-hidden="true" />
+            ) : g.more ? (
+              <button
+                onClick={more.toggle}
+                aria-expanded={shown}
+                className="mb-1 flex w-full items-center gap-1 px-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/80 hover:text-foreground"
+              >
+                {g.label}
+                <ChevronDown className={cn('h-3 w-3 transition-transform', !shown && '-rotate-90')} />
+              </button>
             ) : (
               <div className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/80">{g.label}</div>
             ))}
+          {shown && (
           <ul role="list" className="flex flex-col gap-0.5">
             {g.items.map((item) => {
               const isActive = isActiveRoute(location.pathname, item.match);
@@ -127,8 +138,10 @@ function NavList({ onNavigate, compact = false }: { onNavigate?: () => void; com
               );
             })}
           </ul>
+          )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
