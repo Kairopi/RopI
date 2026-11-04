@@ -148,20 +148,39 @@ export async function listConversations(limit = 200): Promise<Conversation[]> {
   return readLocal<Conversation>(user, 'conversations').sort((a, b) => b.started_at.localeCompare(a.started_at)).slice(0, limit);
 }
 
+// A conversation starts with an id made in the browser; its first save gets a database id.
+// Saves for one conversation run one after another, and later saves reuse that database id,
+// so a fast second turn can never create a second row.
+const dbIds = new Map<string, string>();
+const queues = new Map<string, Promise<unknown>>();
+
 /** Insert or update a whole conversation (called after every turn) */
-export async function saveConversation(c: Conversation): Promise<Conversation> {
+export function saveConversation(c: Conversation): Promise<Conversation> {
+  const key = dbIds.has(c.id) ? dbIds.get(c.id)! : c.id;
+  const run = (queues.get(key) ?? Promise.resolve()).then(() => writeConversation(c));
+  queues.set(key, run.catch(() => undefined));
+  return run;
+}
+
+async function writeConversation(c: Conversation): Promise<Conversation> {
   const user = await uid();
   if (!user) return c;
   const now = new Date().toISOString();
-  const row = { ...c, updated_at: now };
+  const id = dbIds.get(c.id) ?? c.id;
+  const row = { ...c, id, updated_at: now };
   if (!localOnly) {
     const payload = { user_id: user, topic_key: row.topic_key, title: row.title.slice(0, 160), mode: row.mode, turns: row.turns, started_at: row.started_at, updated_at: now };
-    // Ids made in this browser aren't UUIDs: insert first, then keep the database id
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(row.id);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i.test(id);
     const { data, error } = isUuid
-      ? await supabase.from('conversations').upsert({ id: row.id, ...payload }).select().single()
+      ? await supabase.from('conversations').upsert({ id, ...payload }).select().single()
       : await supabase.from('conversations').insert(payload).select().single();
-    if (!error) return data as Conversation;
+    if (!error) {
+      if (!isUuid) {
+        dbIds.set(c.id, data.id);
+        queues.set(data.id, queues.get(c.id) ?? Promise.resolve());
+      }
+      return data as Conversation;
+    }
     if (!missing(error)) throw new Error(error.message);
     localOnly = true;
   }

@@ -128,7 +128,24 @@ await step('Learn shows topic folders; the news topic folder has saved links', a
   await folder.click();
   await page.waitForURL('**/learn/topic/**');
   await page.getByText(/saved by Ropi/).first().waitFor({ timeout: 10000 });
+  await page.getByText('Saved to your account.').waitFor({ timeout: 5000 });
   await page.screenshot({ path: path.join(OUT, 't3-topic.png'), fullPage: true });
+});
+
+await step('it is in the database, and survives a fresh browser', async () => {
+  const rows = await page.evaluate(async () => {
+    const { supabase } = await import('/src/lib/supabase.ts');
+    const t = await supabase.from('topics').select('name, links');
+    const c = await supabase.from('conversations').select('title, turns').order('updated_at', { ascending: false });
+    return { topics: t.data?.length ?? -1, links: (t.data ?? []).reduce((n, r) => n + (r.links?.length ?? 0), 0), convos: c.data?.length ?? -1, turns: c.data?.[0]?.turns?.length ?? 0 };
+  });
+  console.log(`      database: ${rows.topics} folders, ${rows.links} saved links, ${rows.convos} conversation(s), ${rows.turns} turns`);
+  // One conversation, all 6 exchanges in it
+  if (rows.topics < 1 || rows.convos !== 1 || rows.turns !== 12) throw new Error(JSON.stringify(rows));
+  // Wipe this browser's storage except the sign-in, reload: History still has the conversation
+  await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('ropi-conversations') || k.startsWith('ropi-topics')).forEach((k) => localStorage.removeItem(k)));
+  await page.goto(BASE + '/history');
+  await page.getByText(/Talked with Ropi: I'm lost/).waitFor({ timeout: 10000 });
 });
 
 await browser.close();
