@@ -116,6 +116,10 @@ export default function Jobs() {
               <Kanban />
               Board
             </Button>
+            <Button variant="ghost" onClick={() => navigate('/cv')}>
+              <FileText />
+              Design my CV
+            </Button>
             <Button onClick={() => setAddOpen(true)}>
               <Plus />
               Add a job
@@ -243,6 +247,7 @@ function JobRow({
   onChanged: () => Promise<void> | void;
   onNeedResume: () => void;
 }) {
+  const navigate = useNavigate();
   const [busy, setBusy] = useState<null | 'score' | 'tailor' | 'save' | 'status'>(null);
   const [err, setErr] = useState<string | null>(null);
   const [desc, setDesc] = useState(job.description ?? '');
@@ -355,7 +360,7 @@ function JobRow({
                     'num shrink-0 rounded-full px-1.5 py-px text-[11px] font-semibold',
                     fit >= 80 ? 'bg-success/10 text-success' : fit >= 60 ? 'bg-warning/15 text-warning-ink' : 'bg-destructive/10 text-destructive'
                   )}
-                  title={`Your resume matches ${fit}% of what this job asks for`}
+                  title={`Resume fit ${fit}%: how much of what this job asks for your resume shows`}
                 >
                   {fit}% fit
                 </span>
@@ -493,6 +498,10 @@ function JobRow({
                     Approve
                   </Button>
                 )}
+                <Button size="sm" variant="outline" onClick={() => navigate(`/cv?job=${job.id}`)}>
+                  <FileText />
+                  Design and download as PDF
+                </Button>
               </div>
             </div>
           )}

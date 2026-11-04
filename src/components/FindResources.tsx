@@ -93,7 +93,7 @@ export function FindResources({
   const unsaved = (list ?? []).filter((r) => !isSaved(r));
 
   return (
-    <div className="rounded-xl border bg-background/60">
+    <div className="rounded-xl border bg-background/60" data-found>
       <div className="flex items-center gap-2 border-b px-3.5 py-2.5">
         <Search className="h-3.5 w-3.5 text-primary" />
         <span className="flex-1 text-[13px] font-medium">Free resources on {subtopic}</span>

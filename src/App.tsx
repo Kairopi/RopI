@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Jobs from './pages/Jobs'
+import CV from './pages/CV'
 import JobsKanban from './pages/JobsKanban'
 import LearningHub from './pages/LearningHub'
 import Learning from './pages/Learning'
@@ -61,6 +62,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Jobs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cv"
+              element={
+                <ProtectedRoute>
+                  <CV />
                 </ProtectedRoute>
               }
             />
