@@ -13,7 +13,7 @@
  * unlike the browser's own speech recognition.
  */
 import { SpeechError, type Heard } from './speech-manager';
-import { waitAfter } from './endpoint';
+import { createVoiceCheck, patience, waitAfter } from './endpoint';
 
 const KEY = import.meta.env.VITE_MUSE_API_KEY as string | undefined;
 const BASE = (import.meta.env.VITE_META_API_BASE_URL as string | undefined) || 'https://api.meta.ai/v1';
@@ -50,6 +50,8 @@ export interface MuseListenOptions {
   graceMs?: number;
   /** Hard cap on one turn */
   maxMs?: number;
+  /** About to send: ms until it does (null when you start talking again or it's waiting for a tap) */
+  onPending?: (ms: number | null) => void;
 }
 
 let active: { stop: () => void } | null = null;
@@ -99,6 +101,7 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
     const queue: ArrayBuffer[] = [];
 
     const cleanup = () => {
+      opts.onPending?.(null);
       clearTimeout(noSpeech);
       clearTimeout(cap);
       clearTimeout(grace);
@@ -151,16 +154,42 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
     };
     active = handle;
 
-    const noSpeech = setTimeout(() => !heardSpeech && finish(''), opts.noSpeechMs ?? 8000);
-    const cap = setTimeout(() => finish(said()), opts.maxMs ?? 30000);
+    const manual = patience() === 'manual';
+    const noSpeech = setTimeout(() => !heardSpeech && finish(''), opts.noSpeechMs ?? (manual ? 20000 : 10000));
+    const cap = setTimeout(() => finish(said()), opts.maxMs ?? (manual ? 180000 : 90000));
+    const voice = createVoiceCheck();
+
+    /** Send after `ms` of quiet; any sound on the mic in the meantime pushes it back */
+    const arm = (ms: number) => {
+      clearTimeout(grace);
+      if (!Number.isFinite(ms)) {
+        opts.onPending?.(null);
+        return;
+      }
+      const due = Date.now() + ms;
+      const check = () => {
+        if (settled) return;
+        if (voice.speaking()) {
+          // Still making sound (the words haven't arrived yet): not done
+          opts.onPending?.(null);
+          grace = setTimeout(() => arm(Math.max(900, ms * 0.6)), 300);
+          return;
+        }
+        const left = due - Date.now();
+        if (left <= 0) return finish(said());
+        opts.onPending?.(left);
+        grace = setTimeout(check, Math.min(250, left));
+      };
+      check();
+    };
 
     proc.onaudioprocess = (e) => {
       const input = e.inputBuffer.getChannelData(0);
-      if (opts.onLevel) {
-        let sum = 0;
-        for (let i = 0; i < input.length; i += 4) sum += input[i] * input[i];
-        opts.onLevel(Math.min(1, Math.sqrt(sum / (input.length / 4)) * 6));
-      }
+      let sum = 0;
+      for (let i = 0; i < input.length; i += 4) sum += input[i] * input[i];
+      const level = Math.min(1, Math.sqrt(sum / (input.length / 4)) * 6);
+      voice.push(level);
+      opts.onLevel?.(level);
       const pcm = toPcm24k(input, ctx.sampleRate).buffer as ArrayBuffer;
       if (ready && ws.readyState === WebSocket.OPEN) ws.send(pcm);
       else if (queue.length < 40) queue.push(pcm); // about 3 s while the handshake completes
@@ -198,10 +227,12 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
         heardSpeech = true;
         if (typeof ev.turnId === 'number') open.add(ev.turnId);
         clearTimeout(grace); // they kept going
+        opts.onPending?.(null);
       }
       if (ev.type === 'transcript' && typeof ev.transcript === 'string') {
         heardSpeech = true;
         clearTimeout(grace);
+        opts.onPending?.(null);
         partial = ev.transcript;
         opts.onInterim?.(said());
       }
@@ -213,7 +244,7 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
         opts.onInterim?.(said());
         clearTimeout(grace);
         // Wait longer when it sounds unfinished ("...and", one word), shorter for a finished question
-        if (open.size === 0) grace = setTimeout(() => finish(said()), opts.graceMs ?? waitAfter(said()));
+        if (open.size === 0) arm(opts.graceMs ?? waitAfter(said()));
       }
     };
     ws.onerror = () => fail('network');

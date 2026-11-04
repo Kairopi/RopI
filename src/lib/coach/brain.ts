@@ -35,8 +35,9 @@ import { parseSpareRequest, planSpareTime, speakPlan, type SpareInput, type Spar
 import { dayBrief, weekBrief, type AgendaDay, type AgendaItem } from './brief';
 import { addTo, makeNote } from '@/lib/library/notes';
 import { topicKey } from '@/lib/library/store';
+import { answerStyle, profileForPrompt } from '@/hooks/useProfile';
 
-export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'note' | 'day' | 'week' | 'plan' | 'spare' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'chat';
+export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'note' | 'day' | 'week' | 'plan' | 'spare' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'guide' | 'chat';
 
 export interface Routed {
   intent: Intent;
@@ -96,6 +97,10 @@ export const speakable = (s: string) =>
 
 // ---------- 1. routing ----------
 
+/** "I want to do project management", "how do I become a data analyst": a path, not a lookup */
+export const GUIDE =
+  /\b(i (want|would like|'?d like|plan|hope|am trying|'?m trying) to (do|be|become|get into|go into|work (in|as)|move into|switch (in)?to|break into|start (a career|in|out in)|pivot (in)?to|transition (in)?to)|help me (with|get into|become|start|break into|move into|switch)|how (do|can|should) i (become|get into|start (in|out)|break into|move into|switch (in)?to)|(a |my )?career in|career change|(chang|switch)(e|ing)? careers?|new career)\b/i;
+
 const RULES: [Intent, RegExp][] = [
   ['apply', /\b(apply (for me|to (it|them|this))|submit (my|the) application|send (my|the) application)\b/i],
   ['form', /\b(form|cover letter|answer (this|the) question|application question|why do you want|tell me about yourself)\b/i],
@@ -107,6 +112,7 @@ const RULES: [Intent, RegExp][] = [
   ['quiz', /\b(quiz|test me|ask me (some )?questions|practice questions)\b/i],
   ['week', /\b(read (me )?my week|(what'?s|what is|what do i have)( on)?( for)? (this|the) week|my week|(this|the) week ahead|week look like)\b/i],
   ['day', /\b(read (me )?my (day|today)|plan my (day|today|evening)|(what'?s|what is)( on)?( for)? (today|tonight)|what do i have( on)?( for)? (today|tonight)|my day|today'?s plan|(what'?s|what is) the plan for (today|tonight)|day look like)\b/i],
+  ['guide', GUIDE],
   ['add', /\b(remind me|add (a )?task|add .* to my (week|plan|list)|i need to|i have to|put .* in my (week|plan))\b/i],
   ['plan', /\b(what should i (do|study)|what'?s next|(what'?s|plan for) (today|tonight)|my (plan|week|day|schedule)|weak(est)?|struggl|getting wrong|how am i doing|progress)\b/i],
   ['explain', /\b(what (does|is|are|do)|what'?s|explain|mean(s|ing)?|i('?m| am) (lost|confused|stuck)|don'?t (get|understand)|how (does|do|is)|why (does|is|do))\b/i],
@@ -135,7 +141,7 @@ async function route(text: string, ctx: CoachContext): Promise<Routed> {
   // Requests the rules recognise for certain ("what do I have today", "I have 10 minutes",
   // "apply for me") skip the extra model call: about 2 seconds faster
   const sure = routeWithRules(text);
-  if (sure.intent === 'day' || sure.intent === 'week' || sure.intent === 'spare' || sure.intent === 'apply') return sure;
+  if (sure.intent === 'day' || sure.intent === 'week' || sure.intent === 'spare' || sure.intent === 'apply' || sure.intent === 'guide') return sure;
   const today = new Date();
   const recent = ctx.history.slice(-4).map((t) => `${t.role === 'you' ? 'User' : 'Ropi'}: ${t.text.slice(0, 200)}`).join('\n');
   try {
@@ -162,6 +168,7 @@ intents:
 - cv: create / tailor / improve their CV or resume
 - form: help answering a job application form question or cover letter
 - apply: they ask Ropi to submit an application for them
+- guide: they want to get into a field, role or career ("I want to do project management", "help me become a data analyst") and need a path to start
 - chat: anything else (motivation, small talk)
 
 Return ONLY JSON:
@@ -169,7 +176,9 @@ Return ONLY JSON:
       { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 1500, timeoutMs: 12000 }
     );
     const j = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw);
-    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'note', 'day', 'week', 'plan', 'spare', 'add', 'jobs', 'cv', 'form', 'apply', 'chat'];
+    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'note', 'day', 'week', 'plan', 'spare', 'add', 'jobs', 'cv', 'form', 'apply', 'guide', 'chat'];
+    // A career goal said plainly is a path request, whatever the model picked (except jobs/cv/form)
+    if (GUIDE.test(text) && ['plan', 'chat', 'explain', 'add'].includes(j.intent)) j.intent = 'guide';
     if (!intents.includes(j.intent)) return routeWithRules(text);
     if ((j.intent === 'plan' || j.intent === 'chat') && parseSpareRequest(text)) j.intent = 'spare';
     // "Plan my day" / "read me my week" are read straight from the plan: never send them to a long answer
@@ -194,9 +203,58 @@ Return ONLY JSON:
 const SPOKEN =
   'Write it the way you would say it to them: warm, plain, direct sentences. No greeting like "hey friend", no markdown, no lists, no emojis. Write numbers, dates and codes normally (e.g. "Nov 17", "SAP-C02"), it will be shown as well as read aloud.';
 
+const STOP = new Set('the a an and or but so to of for in on at by with about from into is are was were be been it this that these those i im me my you your we our they their what whats how why when where which who does do did can could would should will want need help please just really like know get make tell explain mean means meaning lost confused stuck understand simply quick quickly some any more most very also'.split(' '));
+const contentWords = (s: string) => new Set(s.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/(ing|ed|es|s)$/, '')));
+
+/** Only notes that are actually about what was asked: two shared words, or the topic itself */
+export function relevantTo(question: string, topic: string | null, text: string): boolean {
+  const q = contentWords(`${question} ${topic ?? ''}`);
+  const t = contentWords(text);
+  let shared = 0;
+  for (const w of q) if (t.has(w)) shared++;
+  return shared >= Math.min(2, q.size) && shared > 0;
+}
+
+/** Never wander: answer exactly what was asked, and don't pull in unrelated documents */
+const STAY = 'Answer exactly what they asked, about the subject they named. Do not bring up other topics, documents or companies unless they asked about them.';
+
+/** "I want to do project management": what it is, the usual path, and three first steps in Ropi */
+async function guide(text: string, r: Routed, ctx: CoachContext): Promise<Reply> {
+  const field = (r.topic ?? text.match(GUIDE_FIELD)?.[1] ?? '').replace(/[.?!]+$/, '').trim() || ctx.goal || 'that field';
+  const me = profileForPrompt();
+  const detailed = answerStyle() === 'detailed';
+  const out = await callMuse(
+    `${me ? me + '\n' : ''}${ctx.history.length ? `Conversation so far:\n${ctx.history.slice(-6).map((t) => `${t.role}: ${t.text.slice(0, 300)}`).join('\n')}\n\n` : ''}The user said: "${text.slice(0, 500)}"
+They want to get into: ${field}.
+You are Ropi, a straight-talking career coach. ${STAY}
+Answer in ${detailed ? 'at most 160' : 'at most 110'} words: what the work really is in one plain sentence with an everyday example, the usual way in for someone like them (well-known, widely recognised steps and certifications only; say "often" rather than inventing requirements), and the very first thing to do this week. ${SPOKEN}
+Also give a short folder name for studying it (2-4 words, e.g. "Project management"), and a job title to search (e.g. "Project Manager").
+Return ONLY JSON: {"answer": "...", "folder": "...", "role": "..."}`,
+    { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 3000, timeoutMs: 30000 }
+  );
+  const j = JSON.parse(out.match(/\{[\s\S]*\}/)?.[0] ?? out);
+  const folder = String(j.folder ?? field).trim().slice(0, 60) || field;
+  const role = String(j.role ?? '').trim().slice(0, 60);
+  const q = encodeURIComponent;
+  const steps: SpareStep[] = [
+    { id: 'guide-quiz', kind: 'quiz', title: `Quiz: ${folder} basics`, minutes: 5, why: 'Six questions show what you already know, so Ropi plans the rest around it.', href: `/quiz/new?topic=${q(folder)}`, say: `a quick quiz on ${folder} basics` },
+    { id: 'guide-guide', kind: 'explain', title: `Study guide: ${folder}`, minutes: 10, why: 'The key ideas with real-life examples, plus cards that come back right before you’d forget them.', href: `/learning?guide=${q(folder)}`, say: `a study guide on ${folder}` },
+    ...(role ? [{ id: 'guide-interview', kind: 'explain' as const, title: `Practise a ${role} interview`, minutes: 10, why: 'Scenario questions for the role. Answer on camera, watch it back, get a review.', href: `/interview?role=${q(role)}`, say: `practise a ${role} interview` }] : []),
+    ...(role ? [{ id: 'guide-jobs', kind: 'apply' as const, title: `See ${role} jobs`, minutes: 5, why: 'See what employers ask for right now.', href: `/jobs?q=${q(role)}`, say: `look at ${role} jobs` }] : []),
+  ];
+  return {
+    intent: 'guide',
+    topic: folder,
+    text: speakable(String(j.answer ?? '').trim()) || `Let's start with the basics of ${field}. Take the short quiz below and I'll build the plan from there.`,
+    steps,
+  };
+}
+const GUIDE_FIELD = /\b(?:do|be|become|get into|go into|work in|work as|move into|switch to|break into|start in|career in|pivot to|transition to|into)\s+(?:an?\s+|the\s+)?(.+?)(?:\s+(?:but|and|so|because|please)\b|[.?!,]|$)/i;
+
 async function explain(text: string, topic: string | null, ctx: CoachContext): Promise<Reply> {
   const evidence = await retrieve(text, null).catch(() => []);
-  const notes = evidence.filter((e) => e.kind === 'note' || e.kind === 'card').slice(0, 4);
+  // Your notes only when they're about this question (a Mercor PDF has nothing to say about project charters)
+  const notes = evidence.filter((e) => (e.kind === 'note' || e.kind === 'card') && relevantTo(text, topic, `${e.title} ${e.topic ?? ''} ${e.text}`)).slice(0, 4);
   const block = notes.map((e) => `[${e.title}] ${e.text.slice(0, 700)}`).join('\n');
   const f = ctx.focus;
   const focusBlock = f
@@ -204,10 +262,12 @@ async function explain(text: string, topic: string | null, ctx: CoachContext): P
         f.notes?.length ? `\nTheir own notes on it:\n${f.notes.slice(0, 4).map((n) => `- ${n.slice(0, 400)}`).join('\n')}` : ''
       }\n\n`
     : '';
+  const me = profileForPrompt();
   const out = await callMuse(
-    `${focusBlock}${ctx.history.length ? `Conversation so far:\n${ctx.history.slice(-6).map((t) => `${t.role}: ${t.text.slice(0, 300)}`).join('\n')}\n\n` : ''}The user is studying and said: "${text.slice(0, 500)}"
-${block ? `Their own notes and review cards on this (prefer these, and say "from your notes" when you use them):\n${block}\n` : ''}
-Explain it simply, like a friendly tutor talking to someone getting dressed or on a train: one plain-English idea, one everyday example, then one short question to check they've got it. At most 90 words. ${SPOKEN}
+    `${me ? me + '\n' : ''}${focusBlock}${ctx.history.length ? `Conversation so far:\n${ctx.history.slice(-6).map((t) => `${t.role}: ${t.text.slice(0, 300)}`).join('\n')}\n\n` : ''}The user is studying and said: "${text.slice(0, 500)}"
+${block ? `Their own notes and review cards on this (prefer these, and say "from your notes" when you use them; ignore any that are about something else):\n${block}\n` : ''}
+${STAY}
+Explain it simply, like a friendly tutor talking to someone getting dressed or on a train: one plain-English idea, one real-life example ("For example, ..."), then one short question to check they've got it. At most ${answerStyle() === 'detailed' ? 140 : 90} words. ${SPOKEN}
 Return ONLY JSON: {"answer": "..."}`,
     { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 3000, timeoutMs: 30000 }
   );
@@ -255,7 +315,9 @@ async function podcast(topic: string, text = ''): Promise<Reply> {
 }
 
 async function plan(text: string, ctx: CoachContext): Promise<Reply> {
+  // A plan question answers from your records. A general "what should I do" with nothing on record is coaching.
   const a = await askRopi(text, ctx.plan);
+  if (!a.cited.length && !a.retrieved.length) return chat(text, ctx);
   const next = ctx.plan.upcoming[0];
   return {
     intent: 'plan',
@@ -397,7 +459,8 @@ async function chat(text: string, ctx: CoachContext): Promise<Reply> {
   const next = ctx.plan.upcoming[0];
   const out = await callMuse(
     `You are Ropi, a calm, encouraging study and career coach for people who are changing careers, often after moving abroad, and fit learning into small gaps in their day.
-Their goal: ${ctx.goal ?? 'not set yet'}. ${next ? `Their next planned block: ${next.title}, ${next.when}.` : ''}
+${profileForPrompt() || `Their goal: ${ctx.goal ?? 'not set yet'}.`} ${next ? `Their next planned block: ${next.title}, ${next.when}.` : ''}
+${STAY}
 Recent conversation:\n${ctx.history.slice(-6).map((t) => `${t.role}: ${t.text.slice(0, 200)}`).join('\n') || '(none)'}
 They said: "${text.slice(0, 500)}"
 Reply in at most 60 words. Be specific and practical; end with one small next step they can do in 10 minutes. ${SPOKEN}
@@ -423,6 +486,8 @@ export async function respond(text: string, ctx: CoachContext): Promise<Reply> {
         return await explain(text, r.topic ?? (ctx.focus ? ctx.focus.subtopic ?? ctx.focus.topic : null), ctx);
       case 'note':
         return await note(text, ctx);
+      case 'guide':
+        return await guide(text, r, ctx);
       case 'news':
         return topic ? await news(topic, ctx) : { intent: 'news', topic: null, text: 'News on what? For example: latest news on project management.' };
       case 'podcast':

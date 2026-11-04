@@ -16,6 +16,7 @@ import { searchAllJobs, SOURCES, type JobPosting, type SourceId, type SourceResu
 import { createJobApplication, rememberLogo } from '@/lib/jobs/job-service';
 import { cn } from '@/lib/utils';
 import { CompanyLogo } from './CompanyLogo';
+import { useProfile } from '@/hooks/useProfile';
 
 interface JobDiscoveryFeedProps {
   userId: string;
@@ -44,8 +45,9 @@ function interleave(postings: JobPosting[]): JobPosting[] {
 }
 
 export function JobDiscoveryFeed({ userId, onJobAdded, savedUrls }: JobDiscoveryFeedProps) {
-  const [query, setQuery] = useState('');
-  const [location, setLocation] = useState('');
+  // Opened from Talk ("see project manager jobs"): the role is filled in
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '');
+  const [location, setLocation] = useState(() => useProfile.getState().profile.location.split(',')[0]?.trim() ?? '');
   const [modes, setModes] = useState<string[]>(['remote', 'hybrid']);
   const [postings, setPostings] = useState<JobPosting[] | null>(null);
   const [sources, setSources] = useState<SourceResult[]>([]);

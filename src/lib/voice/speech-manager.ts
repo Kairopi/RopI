@@ -16,7 +16,7 @@
 
 import { listenWithMuse, museListenAvailable, stopMuseListening } from './muse-listen';
 import { kokoroState, loadKokoro, speakKokoro, stopKokoro } from './kokoro';
-import { waitAfter } from './endpoint';
+import { patience, waitAfter } from './endpoint';
 
 /** Voice settings (Talk > Voice): natural = the on-device Kokoro voice */
 export function voicePrefs(): { voice?: string; rate?: number; natural?: boolean; naturalVoice?: string; engine?: 'muse' | 'browser' } {
@@ -299,11 +299,13 @@ export class SpeechManager {
    * An empty final result (Edge does this on a cough or background noise) counts
    * as "didn't hear anything", instead of leaving the page stuck on "Listening".
    */
-  async listenDetailed(options: { onInterim?: (text: string) => void; onLevel?: (level: number) => void; keywords?: string[]; prefer?: 'muse' | 'browser'; quick?: boolean } = {}): Promise<Heard> {
+  async listenDetailed(
+    options: { onInterim?: (text: string) => void; onLevel?: (level: number) => void; onPending?: (ms: number | null) => void; keywords?: string[]; prefer?: 'muse' | 'browser'; quick?: boolean } = {}
+  ): Promise<Heard> {
     const engine = options.prefer === 'browser' && this.isSupported.stt ? 'browser' : options.prefer === 'muse' && museListenAvailable() ? 'muse' : this.getEngine();
     if (engine === 'muse') {
       try {
-        const heard = await listenWithMuse({ onInterim: options.onInterim, onLevel: options.onLevel, keywords: options.keywords });
+        const heard = await listenWithMuse({ onInterim: options.onInterim, onLevel: options.onLevel, onPending: options.onPending, keywords: options.keywords, ...(options.quick ? { graceMs: 700 } : {}) });
         this.lastEngine = 'muse';
         return heard;
       } catch (e) {
@@ -324,7 +326,7 @@ export class SpeechManager {
    * single word waits much longer than a pause after a finished question
    * (see endpoint.ts). Tapping stop sends what was heard.
    */
-  private async listenBrowser(options: { onInterim?: (text: string) => void; quick?: boolean } = {}): Promise<Heard> {
+  private async listenBrowser(options: { onInterim?: (text: string) => void; quick?: boolean; onPending?: (ms: number | null) => void } = {}): Promise<Heard> {
     if (!this.isSupported.stt) {
       throw new Error('Speech recognition not supported in this browser');
     }
@@ -356,6 +358,7 @@ export class SpeechManager {
         if (settled) return;
         settled = true;
         clearInterval(tick);
+        options.onPending?.(null);
         fn();
       };
       const done = () => {
@@ -365,16 +368,20 @@ export class SpeechManager {
       };
 
       // Our own end-of-turn: silence long enough for what was said
+      const cap = patience() === 'manual' ? 180000 : 90000;
       const tick = setInterval(() => {
         const t = text();
-        if (t && Date.now() - lastActivity > waitAfter(t)) {
+        const wait = t ? waitAfter(t) : Infinity;
+        const quiet = Date.now() - lastActivity;
+        options.onPending?.(t && Number.isFinite(wait) && quiet > 400 ? Math.max(0, wait - quiet) : null);
+        if (t && quiet > wait) {
           try {
             recognition.stop();
           } catch {
             // already stopping
           }
           done();
-        } else if ((!heardAny && Date.now() - startedAt > 8000) || (!t && Date.now() - lastActivity > 9000) || Date.now() - startedAt > 45000) {
+        } else if ((!heardAny && Date.now() - startedAt > 10000) || (!t && Date.now() - lastActivity > 12000) || Date.now() - startedAt > cap) {
           try {
             recognition.stop();
           } catch {

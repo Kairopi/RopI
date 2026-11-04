@@ -17,9 +17,9 @@ function makeStyles(accent: string, template: CvTemplate) {
   const modern = template === 'modern';
   return StyleSheet.create({
     page: { fontFamily: 'Helvetica', fontSize: 9.8, lineHeight: 1.38, color: '#1f2328', paddingVertical: 38, paddingHorizontal: 44 },
-    name: { fontFamily: 'Helvetica-Bold', fontSize: modern ? 24 : 21, color: modern ? accent : '#111', textAlign: template === 'classic' ? 'center' : 'left', letterSpacing: -0.3 },
-    headline: { fontSize: 11, color: '#444', marginTop: 3, textAlign: template === 'classic' ? 'center' : 'left' },
-    contact: { fontSize: 9, color: '#555', marginTop: 5, textAlign: template === 'classic' ? 'center' : 'left' },
+    name: { fontFamily: 'Helvetica-Bold', fontSize: modern ? 24 : 21, color: modern ? accent : '#111', textAlign: template === 'classic' ? 'center' : 'left', letterSpacing: -0.3, lineHeight: 1.35 },
+    headline: { fontSize: 11, lineHeight: 1.3, color: '#444', marginTop: 6, textAlign: template === 'classic' ? 'center' : 'left' },
+    contact: { fontSize: 9, lineHeight: 1.4, color: '#555', marginTop: 4, textAlign: template === 'classic' ? 'center' : 'left' },
     section: { marginTop: 13 },
     h: {
       fontFamily: 'Helvetica-Bold',

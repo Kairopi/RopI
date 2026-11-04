@@ -2,17 +2,20 @@ import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useWeek } from '@/hooks/useWeek';
+import { useProfile } from '@/hooks/useProfile';
 import { Loader2 } from '@/components/icons';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   const { ownerId, setupDone, claim } = useWeek();
+  const claimProfile = useProfile((s) => s.claim);
 
-  // The stored week belongs to one account; a new account starts empty
+  // The stored week and profile belong to one account; a new account starts empty
   useEffect(() => {
     if (user && ownerId !== user.id) claim(user.id);
-  }, [user, ownerId, claim]);
+    if (user) claimProfile(user.id);
+  }, [user, ownerId, claim, claimProfile]);
 
   if (loading || (user && ownerId !== user.id)) {
     return (

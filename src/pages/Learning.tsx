@@ -59,7 +59,11 @@ export default function Learning() {
   useEffect(() => {
     localStorage.setItem(MODE_KEY, mode);
   }, [mode]);
-  const [topic, setTopic] = useState('');
+  // Opened from Talk ("study guide on project management"): the topic is filled in
+  const [topic, setTopic] = useState(() => new URLSearchParams(window.location.search).get('guide') ?? '');
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('guide')) setMode('topic');
+  }, []);
   // Start writing the quiz while you're still typing: by the time you press Quiz me it's often ready
   useEffect(() => {
     const t = topic.trim();

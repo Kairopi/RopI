@@ -56,7 +56,7 @@ const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hou
 
 // Voice preferences: which system voice and how fast
 const PREF = 'ropi-voice-v1';
-type VoicePref = { voice?: string; rate: number; muted: boolean; handsFree: boolean; natural?: boolean; naturalVoice?: string; engine?: 'muse' | 'browser'; patience?: 'short' | 'normal' | 'long' };
+type VoicePref = { voice?: string; rate: number; muted: boolean; handsFree: boolean; natural?: boolean; naturalVoice?: string; engine?: 'muse' | 'browser'; patience?: 'short' | 'normal' | 'long' | 'manual' };
 const loadPref = (): VoicePref => {
   try {
     return { rate: 1, muted: false, handsFree: true, ...JSON.parse(localStorage.getItem(PREF) ?? '{}') };
@@ -95,6 +95,7 @@ export default function Talk() {
   const [state, setState] = useState<State>('idle');
   const [interim, setInterim] = useState('');
   const [level, setLevel] = useState(0);
+  const [pending, setPending] = useState<number | null>(null);
   const [typed, setTyped] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [convo, setConvo] = useState<Conversation>(() => newConversation('voice'));
@@ -207,6 +208,7 @@ export default function Talk() {
       const heard = await speechManager.listenDetailed({
         onInterim: setInterim,
         onLevel: setLevel,
+        onPending: setPending,
         // Bias Muse toward your own topic words ("Lambda", "stakeholder mapping")
         keywords: ['Ropi', ...libraryRef.current.flatMap((f) => [f.name, ...f.subs.slice(0, 4)])].slice(0, 30),
       });
@@ -465,6 +467,7 @@ export default function Talk() {
                     <option value="short">A short pause</option>
                     <option value="normal">A normal pause</option>
                     <option value="long">A long pause (I think while I talk)</option>
+                    <option value="manual">Until I tap the mic</option>
                   </select>
                 </label>
                 <label className="text-muted-foreground sm:col-span-2">
@@ -551,7 +554,19 @@ export default function Talk() {
           <div className={cn('flex flex-col', empty && 'items-center')}>
             <div className={cn('min-h-[20px] text-[13px]', empty ? 'mb-3 max-w-md text-center' : 'mb-2 px-1')}>
               {state === 'listening' ? (
-                <span className={interim ? 'text-foreground' : 'text-muted-foreground'}>{interim ? `${interim} …` : 'Listening. Take your time, tap when you’re done.'}</span>
+                <span className="flex flex-col items-center gap-1">
+                  <span className={interim ? 'text-foreground' : 'text-muted-foreground'}>
+                    {interim ? `${interim} …` : pref.patience === 'manual' ? 'Listening. Take all the time you need, tap when you’re done.' : 'Listening. Take your time, tap when you’re done.'}
+                  </span>
+                  {pending !== null && interim && (
+                    <span className="inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground" aria-live="off">
+                      <span className="relative h-1 w-16 overflow-hidden rounded-full bg-border">
+                        <span className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-200" style={{ width: `${Math.max(0, 100 - (pending / 2600) * 100)}%` }} />
+                      </span>
+                      Sending when you pause. Keep talking to add more.
+                    </span>
+                  )}
+                </span>
               ) : state === 'speaking' ? (
                 <span className="text-muted-foreground">Ropi is talking. Tap the button to stop.</span>
               ) : notice ? (
