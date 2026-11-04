@@ -1,230 +1,104 @@
-# 🚀 ROPI - AI Life Operating System
+# Ropi
 
-**Meta Global AI Developer Hackathon 2026**
+Ropi plans your study and job search around the free time you actually have, and replans when your week changes. It is built for the Meta Global AI Developer Hackathon 2026, with Meta's Muse models for the language work.
 
-> "One intelligent system that closes the loop between ambition and action"
+You tell Ropi when you're free and what you need to do. It places each task in your free time before it's due. When something changes ("manager added a shift, only 20 min tonight"), only the blocks that lost their time move, and each one says why. Quizzes, review cards and job deadlines feed the same week, so a question you miss becomes a practice block and a closing date becomes time to apply.
 
-## 🎯 What is ROPI?
+## What you can do
 
-ROPI is an **intelligent closed-loop career growth system** that:
-- **Understands** your real life (work shifts, deadlines, goals, available time)
-- **Coordinates** job applications + learning + schedule across everything
-- **Adapts** in real-time when circumstances change (LifeShift)
-- **Executes** autonomously with observable actions and verifiable evidence
-- **Learns** from your actual results (quiz scores → skill updates → adjusted lessons)
+| Page | What it's for |
+|---|---|
+| **Today** | What to do next and why. Your week on a calendar with dates: click empty time to add something to do or busy time, click a block to start it or mark it done. Check-ins after a planned block ends ("Done, took 30 min"). Last 7 days. |
+| **LifeShift** | Say or type what changed. Meta Muse turns the sentence into a constraint, the scheduler replans, moved blocks travel to their new slot, and anything that no longer fits gets concrete fixes ("Do 135 min instead", "Skip it this week"). |
+| **Learn** | Quizzes that score each concept separately. Missed questions become FSRS review cards. Meta Muse writes a short lesson on your weakest concept. Upload a PDF or DOCX and get a quiz where every answer quotes the exact line it came from. Voice quizzes. |
+| **Jobs** | Search real openings from company career pages (Job Seek). Saving a job also fetches its full description. Score your resume against it, tailor the resume with Meta Muse, approve it, then apply yourself. A Board view shows every job by stage. |
+| **Tasks** | Everything on your plate this week, what's at risk, and how your real times compare with your estimates. |
+| **History** | Everything you did, day by day, with how Ropi knows: "Recorded by Ropi" or "You reported". Entries can't be edited or deleted. |
+| **Ask Ropi** (Ctrl/Cmd + K) | Questions about your own week and progress ("What have I been getting wrong?"). Answers cite your quiz history, cards, notes and plan. |
 
-Built with **100% Meta AI technology stack** for the Meta Global AI Developer Hackathon 2026.
+## Honesty rules
 
----
+These are enforced in code, not just stated:
 
-## ✨ Key Features
+- **Ropi never applies for you.** "Applied" is something you report, and History shows it as "You reported".
+- **Document quizzes keep only questions whose quote is word for word in your document** (`quoteIsInChunk`). Anything Muse can't back up is dropped.
+- **Ask Ropi answers only from your own records.** Citations to evidence that doesn't exist are stripped before you see them (`verifyCitations`).
+- **Replan explanations come from the scheduler's data, not from a language model** (`explainChanges`).
+- **A job isn't scored without a real description.** It asks for one instead.
+- **History is append-only.** Row-level security allows inserts and reads, never updates or deletes.
 
-### 🔄 **LifeShift - Real-Time Adaptation (WOW #1)**
-Type "Manager added shift, only 20min tonight" → watch entire system recalculate in < 1 second.
-- Constraint-based scheduling (not LLM guessing)
-- Coordinated action across jobs + learning + schedule
-- Observable reasoning: "Here's what I did and why"
+## Where Meta models are used
 
-### 🧠 **Learning Feedback Loop (WOW #2)**
-Get one quiz answer wrong → watch ROPI update your skill level + adjust tomorrow's lesson live.
-- Uses ts-fsrs (proven spaced-repetition algorithm, not fake AI)
-- Identifies weak spots automatically
-- Adapts future content based on YOUR results
+All calls go to the Meta Model API's OpenAI-compatible chat completions endpoint (`src/lib/api/muse.ts`), mostly with `muse-spark-1.3`:
 
-### 💼 **Autonomous Job Applications**
-Agents apply to jobs overnight with permission design + verifiable evidence.
-- 6-stage pipeline (discover → score → tailor → approve → apply → track)
-- Fact-preserving resume editing (never fabricates)
-- Observable execution with screenshots + confirmation IDs
-- Approval required before submission
+- reading your free time and LifeShift sentences into structured data (`parse-availability.ts`, `parse-constraint.ts`)
+- writing quizzes on any topic and from your documents (`topic-quiz.ts`, `source-quiz.ts`)
+- the lesson on your weakest concept (`adaptive-lessons.ts`)
+- summaries and tags for uploaded documents (`sources.ts`)
+- Ask Ropi answers (`knowledge/ask.ts`)
+- resume tailoring and interview practice (`resume-tailor.ts`, `interview-coach.ts`)
 
-### 🎙️ **Voice Everywhere**
-Hands-free interaction while commuting, cooking, or exercising.
-- Voice quizzes with Web Speech API
-- Natural conversation with Meta Muse Voice
-- Works on mobile + desktop
+Where a result can be checked, it is: quotes against the document, citations against the evidence, and every parsed constraint against valid dates and minutes. If Muse is down or returns something invalid, LifeShift falls back to built-in rules and says "Parsed by rules".
 
----
+What isn't a model:
+- **Scheduling** is a constraint scheduler adapted from smart-agentic-calendar.
+- **Review timing** is FSRS (`ts-fsrs` 6.0.0).
+- **Resume scoring** is deterministic. It checks the job description's key terms, named skills, job title, resume sections and gaps between jobs.
+- **Voice** uses the browser's Web Speech API.
 
-## 🏗️ Tech Stack
+## Run it locally
 
-- **Frontend:** Vite + React + TypeScript + TailwindCSS + shadcn/ui
-- **Backend:** Supabase (PostgreSQL + Auth + Storage)
-- **AI:** Meta Muse Wonder, Meta Muse Spark, Meta Muse Voice Transcribe
-- **Scheduling:** ts-fsrs (spaced repetition)
-- **Browser Automation:** Stagehand (vision-based)
-- **Deployment:** Vercel
-
----
-
-## 🎨 Design System
-
-Complete design system documented in `DESIGN_SYSTEM.md`:
-- Meta purple theme (#a855f7)
-- Observable intelligence patterns
-- 6 core components (AgentStatus, EvidenceCard, SkillMeter, etc.)
-- Mobile-first, voice-ready
-- Animation principles for WOW moments
-
----
-
-## 📋 Build Plan
-
-48-hour build broken down hour-by-hour in `TASKS.md`:
-- **Phase 1 (Hour 0-8):** Foundation ✅
-- **Phase 2 (Hour 8-16):** LifeShift WOW moment
-- **Phase 3 (Hour 16-24):** Learning Loop WOW moment
-- **Phase 4 (Hour 24-32):** Job application system
-- **Phase 5 (Hour 32-40):** Supporting features
-- **Phase 6 (Hour 40-48):** Demo ready + submission
-
-Current status tracked in `STATUS.md`.
-
----
-
-## 🆚 What Makes ROPI Different?
-
-### **We Borrowed From 25 Production Systems:**
-
-| System | What We Borrowed | GitHub |
-|--------|-----------------|--------|
-| **Khoj** | Searchable knowledge, scheduled tasks | [khoj-ai/khoj](https://github.com/khoj-ai/khoj) |
-| **Skyvern** | Act-Extract-Validate, evidence trails | [Skyvern-AI/skyvern](https://github.com/Skyvern-AI/skyvern) |
-| **Smart Agentic Calendar** | Constraint-based scheduling | [fbdo/smart-agentic-calendar](https://github.com/fbdo/smart-agentic-calendar) |
-| **ApplyPilot** | 6-stage job pipeline | [Pickle-Pixel/ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) |
-| **Resume Matcher** | Fact-preserving editing + ATS score | [srbhr/Resume-Matcher](https://github.com/srbhr/Resume-Matcher) |
-| **ts-fsrs** | Proven spaced-repetition algorithm | [open-spaced-repetition/ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) |
-| **+ 19 more systems** | See FINAL_REQUIREMENTS_2026.md | Complete list in docs |
-
-### **What We Do Differently:**
-- ❌ **Other tools:** Do one thing (schedule OR apply OR quiz)
-- ✅ **ROPI:** ONE system that understands, coordinates, executes, and learns across EVERYTHING
-
----
-
-## 🚀 Getting Started
-
-### **Prerequisites**
-- Node.js 18+
-- npm or pnpm
-- Supabase account
-
-### **Installation**
+You need Node 20.19+ (or 22.12+), which is what Vite 8 requires, and a Supabase project.
 
 ```bash
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/ropi.git
-cd ropi
-
-# Install dependencies
 npm install
-
-# Set up environment variables
-cp .env.example .env
-# Add your Supabase URL and anon key
-
-# Run development server
-npm run dev
+cp .env.example .env   # then fill in the values
+npm run dev            # http://localhost:5173
 ```
 
-### **Database Setup**
+`.env`:
 
-1. Create Supabase project at https://supabase.com/dashboard
-2. Copy 24-table schema from `FINAL_REQUIREMENTS_2026.md` (lines 2000-2500)
-3. Run SQL in Supabase SQL Editor
-4. Enable email auth in Authentication settings
+| Variable | What it is |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase publishable (anon) key |
+| `VITE_MUSE_API_KEY` | Meta Model API key |
+| `VITE_META_API_BASE_URL` | Optional, defaults to `https://api.meta.ai/v1` |
 
----
+Database setup:
+1. In the Supabase SQL editor, run `supabase-schema.sql`.
+2. Run each file in `supabase-migrations/` in filename order. Each one is safe to re-run.
+3. Turn on anonymous sign-ins (Authentication > Providers). Ropi signs every visitor in anonymously, so row-level security (`auth.uid() = user_id`) works without email confirmation.
 
-## 📊 Database Schema
+These steps were applied to the live hackathon project. Running the whole sequence on a brand-new project hasn't been tested.
 
-24 tables organized by feature:
+Other commands: `npm run build`, `npm run typecheck`.
 
-**Scheduling (6 tables):**
-- `time_blocks`, `availability_windows`, `calendar_events`, `replan_log`, `scheduling_conflicts`, `user_context`
+## How it was checked
 
-**Job Applications (5 tables):**
-- `job_applications`, `resumes`, `cover_letters`, `recruiters`, `company_watchlists`
+End-to-end browser tests (Playwright) run against the live Supabase project and Meta API:
 
-**Learning (4 tables):**
-- `lessons`, `lesson_progress`, `concept_cards`, `review_sessions`
+- the main flow: onboarding, quiz, weak spot, review cards, lesson, LifeShift, Ask Ropi, check-in, History
+- the calendar: add busy time, add a task, open a block, collapse a section
+- PDF upload to a quoted quiz
+- jobs: search, save with description, score, tailor, I applied, History
+- the Board
+- History backfill and the phone calendar
 
-**Knowledge (1 table):**
-- `knowledge_items`
+Logic suites cover the scheduler, week logic, voice command parsing, document sources, FSRS previews and resume scoring.
 
-**Agent System (8 tables):**
-- `tasks`, `agent_intentions`, `verified_actions`, `activity_log`, `action_history`, `agent_permissions`, `control_handoffs`, `quiz_attempts`
+These test scripts live in `.tmp-check/`, which is not committed yet.
 
----
+## Known limits
 
-## 🎬 Demo Scenarios
+- **The Meta API key is in the browser bundle** (`VITE_MUSE_API_KEY`), which is fine for a demo but not for production. Production needs a small server proxy that holds the key.
+- **Your week (free time, tasks, busy time) is saved in this browser** (localStorage). Quizzes, cards, jobs, documents and History are in Supabase. There's no cross-device sync or email login yet.
+- **Nothing runs in the background.** "Last 7 days" and the plan are worked out when you open the app, and there are no notifications.
+- **Job descriptions are fetched automatically only for Job Seek listings.** For a job from elsewhere, you paste the description.
+- **Voice answers need Chrome, Edge or Safari**, and you can't interrupt Ropi while it reads.
 
-### **Scenario 1: LifeShift**
-1. Dashboard shows 90min study session
-2. Type: "Manager added shift, only 20min tonight"
-3. Watch interface recalculate in < 1s
-4. See before/after comparison
-5. Observe coordinated changes across jobs + learning
+## Credits
 
-### **Scenario 2: Learning Loop**
-1. Take voice quiz on AWS Lambda
-2. Answer 4/5 correct (get timeout limit wrong)
-3. Watch skill meter update: 68% → 70%
-4. See weak spot: "Timeout limits (0/3 correct)"
-5. See tomorrow's lesson: "Memory trick for 900 seconds"
+Code adapted from, and designs followed from, open-source projects, each pinned to the exact commit studied and with its licence: see `THIRD_PARTY_NOTICES.md`. What was taken from each repo and why is in `docs/UPSTREAM_AUDIT.md`.
 
-### **Scenario 3: Job Application**
-1. Browse jobs with match scores
-2. Click "Monzo PM" (90% match)
-3. Review tailored resume (ATS: 92/100)
-4. Approve application
-5. Watch agent apply with evidence
-
----
-
-## 📚 Documentation
-
-- **DESIGN_SYSTEM.md** - Complete design system
-- **TASKS.md** - 48-hour build plan
-- **STATUS.md** - Real-time progress tracker
-- **FINAL_REQUIREMENTS_2026.md** - Complete requirements
-- **LEARNINGS_FROM_*.md** - Research from 25 systems
-
----
-
-## 🏆 Why This Wins
-
-1. **Closed-Loop Intelligence** - Not just automation, actual learning from results
-2. **100% Meta Technology** - Muse Wonder, Spark, Voice
-3. **Solves Real Problems** - 41% say time is biggest barrier, 47% pause job search
-4. **Autonomous + Intelligent** - Acts while you're offline, coordinates everything
-5. **Two Jaw-Dropping Moments** - LifeShift + Learning Loop (no other team has this)
-6. **Production-Ready** - Built from 25 proven patterns, not invented from scratch
-
----
-
-## 📝 License
-
-MIT License - Built for Meta Global AI Developer Hackathon 2026
-
----
-
-## 🙏 Acknowledgments
-
-This project synthesizes proven patterns from 25 open-source systems:
-- Khoj, Open Notebook (knowledge)
-- Skyvern (automation)
-- Smart Agentic Calendar, Open Sunsama, Super Productivity (scheduling)
-- ApplyPilot, Job Seek, Resume Matcher, Reactive Resume, Job Application Tracker (jobs)
-- LearnHouse, ts-fsrs, SurfSense, Karakeep (learning)
-- Pipecat, LiveKit Agents, Kokoro-FastAPI (voice)
-- OpenMuse, AnythingLLM, Pipali, OpenClaw, OpenBot, Nanobot, Nanobrowser (platform)
-
-See `FINAL_REQUIREMENTS_2026.md` for complete attribution with GitHub links.
-
----
-
-**Built with 🧠 + ⚡ for Meta Global AI Developer Hackathon 2026**
-
-**Deadline:** November 4, 2026 @ 9PM EST  
-**Status:** In progress (Hour 2 of 48)
+Job listings come from [Job Seek](https://jseek.co): Viktor Shcherbakov, "Collection of Job Postings," (c) 2025, [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). Job descriptions belong to the employers.

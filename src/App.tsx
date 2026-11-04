@@ -4,11 +4,19 @@ import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
-import JobBoard from './pages/JobBoard'
+import Jobs from './pages/Jobs'
+import JobsKanban from './pages/JobsKanban'
 import LearningHub from './pages/LearningHub'
+import Learning from './pages/Learning'
+import StudyGuide from './pages/StudyGuide'
+import QuizTaking from './pages/QuizTaking'
+import QuizResults from './pages/QuizResults'
+import VoiceQuizPage from './pages/VoiceQuizPage'
+import DailyReviews from './pages/DailyReviews'
 import LifeShift from './pages/LifeShift'
-import KnowledgeBase from './pages/KnowledgeBase'
 import TaskBoard from './pages/TaskBoard'
+import Setup from './pages/Setup'
+import Activity from './pages/Activity'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -20,6 +28,14 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route
+              path="/setup"
+              element={
+                <ProtectedRoute>
+                  <Setup />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
@@ -40,15 +56,72 @@ function App() {
               path="/jobs"
               element={
                 <ProtectedRoute>
-                  <JobBoard />
+                  <Jobs />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/learn"
+              path="/jobs/kanban"
+              element={
+                <ProtectedRoute>
+                  <JobsKanban />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/learn" element={<Navigate to="/learning" replace />} />
+            <Route
+              path="/learning-hub"
               element={
                 <ProtectedRoute>
                   <LearningHub />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/learning"
+              element={
+                <ProtectedRoute>
+                  <Learning />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/study-guide/:id"
+              element={
+                <ProtectedRoute>
+                  <StudyGuide />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quiz/:quizId"
+              element={
+                <ProtectedRoute>
+                  <QuizTaking />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quiz/results/:quizId"
+              element={
+                <ProtectedRoute>
+                  <QuizResults />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/voice-quiz"
+              element={
+                <ProtectedRoute>
+                  <VoiceQuizPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reviews"
+              element={
+                <ProtectedRoute>
+                  <DailyReviews />
                 </ProtectedRoute>
               }
             />
@@ -61,13 +134,14 @@ function App() {
               }
             />
             <Route
-              path="/knowledge"
+              path="/history"
               element={
                 <ProtectedRoute>
-                  <KnowledgeBase />
+                  <Activity />
                 </ProtectedRoute>
               }
             />
+            <Route path="/activity" element={<Navigate to="/history" replace />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>

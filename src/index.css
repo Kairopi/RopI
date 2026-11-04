@@ -1,82 +1,48 @@
+@import '@fontsource-variable/outfit';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/geist-mono';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ROPI design tokens. See DESIGN.md for the reasoning behind every value. */
 @layer base {
   :root {
-    /* ROPI PRECISION MINIMALISM - 6 Core Tokens (CORRECT HSL VALUES) */
-    --canvas: 0 0% 100%;              /* #FFFFFF */
-    --surface: 210 20% 98%;           /* #F7F8FA */
-    --ink: 225 19% 8%;                /* #111318 */
-    --secondary: 220 8% 43%;          /* #666B75 */
-    --border: 220 14% 91%;            /* #E4E7EC */
-    --accent: 227 80% 58%;            /* #3452E8 */
-    
-    /* shadcn/ui token mappings */
-    --background: 0 0% 100%;
-    --foreground: 225 19% 8%;
-    
+    /* Surfaces: warm canvas, white panels, hairlines (no drop shadows) */
+    --background: 60 9% 97.5%;
+    --foreground: 225 20% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 225 19% 8%;
-    
+    --card-foreground: 225 20% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 225 19% 8%;
-    
-    --primary: 227 80% 58%;
+    --popover-foreground: 225 20% 8%;
+
+    /* Brand: cobalt from the logo. The only chromatic color in the UI chrome */
+    --primary: 229 91% 54%;
     --primary-foreground: 0 0% 100%;
-    
-    --secondary: 210 20% 98%;
-    --secondary-foreground: 225 19% 8%;
-    
-    --muted: 210 20% 98%;
-    --muted-foreground: 220 8% 43%;
-    
-    --accent: 227 80% 58%;
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 84% 60%;
+    --ring: 229 91% 54%;
+
+    /* Neutrals */
+    --secondary: 60 6% 94%;
+    --secondary-foreground: 225 20% 8%;
+    --muted: 60 6% 94.5%;
+    --muted-foreground: 225 7% 42%;
+    --accent: 229 100% 97%;
+    --accent-foreground: 229 91% 44%;
+    --border: 60 5% 89%;
+    --input: 60 4% 86%;
+
+    /* Status only */
+    --success: 158 64% 32%;
+    --warning: 38 95% 52%;
+    --warning-ink: 28 85% 36%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
-    
-    --border: 220 14% 91%;
-    --input: 220 14% 91%;
-    --ring: 227 80% 58%;
-    
-    --radius: 0.5rem;
-    
-    /* Semantic colors */
-    --success: 142 76% 36%;           /* #10B981 */
-    --warning: 38 92% 50%;            /* #F59E0B */
-    --error: 0 72% 51%;               /* #EF4444 */
-  }
- 
-  .dark {
-    --background: 225 19% 8%;
-    --foreground: 0 0% 98%;
-    
-    --card: 225 19% 8%;
-    --card-foreground: 0 0% 98%;
-    
-    --popover: 225 19% 8%;
-    --popover-foreground: 0 0% 98%;
-    
-    --primary: 227 80% 58%;
-    --primary-foreground: 0 0% 100%;
-    
-    --secondary: 220 8% 16%;
-    --secondary-foreground: 0 0% 98%;
-    
-    --muted: 220 8% 16%;
-    --muted-foreground: 220 8% 65%;
-    
-    --accent: 227 80% 58%;
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --border: 220 8% 16%;
-    --input: 220 8% 16%;
-    --ring: 227 80% 58%;
+
+    --radius: 0.75rem;
+
+    /* Elevation for things that float (menus, dialogs, moving blocks) */
+    --shadow-float: 0 1px 2px hsl(225 20% 8% / 0.06), 0 8px 24px -6px hsl(225 20% 8% / 0.12);
   }
 }
 
@@ -84,34 +50,95 @@
   * {
     border-color: hsl(var(--border));
   }
-  
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 14px;
+    line-height: 1.55;
+    font-feature-settings: 'ss01' 1, 'cv11' 1;
+    text-rendering: optimizeLegibility;
   }
-  
-  h1, h2, h3 {
-    letter-spacing: -0.02em;
+
+  h1, h2, h3, h4 {
+    @apply font-display text-foreground;
+    letter-spacing: -0.015em;
+    font-weight: 600;
   }
-  
+
+  h1 {
+    letter-spacing: -0.03em;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
-  
+
   ::-webkit-scrollbar-track {
-    background: hsl(var(--surface));
+    background: transparent;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
-    border-radius: 4px;
+    border: 3px solid hsl(var(--background));
+    border-radius: 999px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--secondary));
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+@layer components {
+  /* Small uppercase label above titles */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase text-muted-foreground;
+    letter-spacing: 0.08em;
+  }
+
+  /* Numbers and times */
+  .num {
+    @apply font-mono tabular-nums;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slideDown {
+    animation: slideDown 0.25s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .shadow-float {
+    box-shadow: var(--shadow-float);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-slideDown {
+      animation: none;
+    }
   }
 }

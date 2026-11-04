@@ -167,8 +167,53 @@ CREATE TABLE IF NOT EXISTS company_watchlists (
 );
 
 -- ============================================
--- LEARNING (4 tables)
+-- LEARNING (6 tables) - Updated for Phase 3
 -- ============================================
+
+-- Study Guides (generated from documents/questions)
+CREATE TABLE IF NOT EXISTS study_guides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users NOT NULL,
+  topic TEXT NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT, -- AI-generated 300-500 word summary
+  key_points TEXT[], -- Array of key concepts
+  prerequisites TEXT[], -- What to know first
+  learning_objectives TEXT[], -- What you'll learn
+  difficulty TEXT CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
+  estimated_study_time_minutes INTEGER,
+  source_documents TEXT[], -- File names or URLs
+  source_type TEXT DEFAULT 'upload', -- 'upload', 'url', 'question', 'ai-search'
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Flashcards (linked to study guides)
+CREATE TABLE IF NOT EXISTS flashcards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  study_guide_id UUID REFERENCES study_guides(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users NOT NULL,
+  front TEXT NOT NULL, -- Question
+  back TEXT NOT NULL, -- Answer
+  topic TEXT NOT NULL,
+  tags TEXT[],
+  difficulty TEXT,
+  position INTEGER, -- Order in deck
+  
+  -- FSRS fields (same as concept_cards for compatibility)
+  stability FLOAT DEFAULT 1.0,
+  difficulty_score FLOAT DEFAULT 0.3,
+  state TEXT DEFAULT 'new',
+  reps INTEGER DEFAULT 0,
+  lapses INTEGER DEFAULT 0,
+  fsrs_card JSONB NOT NULL,
+  next_review_at TIMESTAMPTZ DEFAULT NOW(),
+  last_reviewed_at TIMESTAMPTZ,
+  review_count INTEGER DEFAULT 0,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS lessons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users NOT NULL,
@@ -199,10 +244,32 @@ CREATE TABLE IF NOT EXISTS concept_cards (
   question TEXT NOT NULL,
   answer TEXT NOT NULL,
   options JSONB, -- ['A', 'B', 'C', 'D']
-  difficulty INTEGER DEFAULT 0,
-  due_date TIMESTAMPTZ,
-  fsrs_state JSONB, -- ts-fsrs scheduler state
+  correct_answer_index INTEGER, -- Index of correct answer in options
+  
+  -- FSRS-7 Parameters (for querying & analytics)
+  stability FLOAT DEFAULT 1.0,
+  difficulty FLOAT DEFAULT 0.3,
+  state TEXT DEFAULT 'new', -- 'new' | 'learning' | 'review' | 'relearning'
+  reps INTEGER DEFAULT 0,
+  lapses INTEGER DEFAULT 0,
+  elapsed_days INTEGER DEFAULT 0,
+  scheduled_days INTEGER DEFAULT 0,
+  last_review TIMESTAMPTZ,
+  
+  -- Scheduling
+  due_date TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Full FSRS card state (for ts-fsrs library)
+  fsrs_card JSONB NOT NULL,
+  
+  -- Review logs (CRITICAL for FSRS optimization)
+  revlogs JSONB[] DEFAULT '{}',
+  
+  -- Source tracking
   source_document TEXT,
+  source_lesson TEXT,
+  source_quiz TEXT,
+  
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -210,9 +277,27 @@ CREATE TABLE IF NOT EXISTS review_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users NOT NULL,
   card_id UUID REFERENCES concept_cards,
+  
+  -- User response
   answer TEXT,
   correct BOOLEAN,
   time_taken_seconds INTEGER,
+  
+  -- FSRS rating (0=Again, 1=Hard, 2=Good, 3=Easy)
+  rating INTEGER,
+  
+  -- FSRS review log (CRITICAL for optimization)
+  revlog JSONB,
+  
+  -- State tracking
+  state_before TEXT, -- 'new' | 'learning' | 'review' | 'relearning'
+  state_after TEXT,
+  interval_days INTEGER,
+  stability_before FLOAT,
+  stability_after FLOAT,
+  difficulty_before FLOAT,
+  difficulty_after FLOAT,
+  
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -363,6 +448,8 @@ ALTER TABLE resumes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cover_letters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recruiters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE company_watchlists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_guides ENABLE ROW LEVEL SECURITY;
+ALTER TABLE flashcards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lesson_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE concept_cards ENABLE ROW LEVEL SECURITY;
@@ -411,9 +498,106 @@ CREATE POLICY "Users can access own data" ON quiz_attempts FOR ALL USING (auth.u
 CREATE INDEX idx_time_blocks_user_time ON time_blocks(user_id, start_time);
 CREATE INDEX idx_job_applications_user_status ON job_applications(user_id, status);
 CREATE INDEX idx_concept_cards_user_due ON concept_cards(user_id, due_date);
+CREATE INDEX idx_concept_cards_user_state ON concept_cards(user_id, state);
+CREATE INDEX idx_concept_cards_due_learning ON concept_cards(user_id, due_date) WHERE state IN ('learning', 'review', 'relearning');
+CREATE INDEX idx_review_sessions_user_card ON review_sessions(user_id, card_id, created_at DESC);
 CREATE INDEX idx_activity_log_user_created ON activity_log(user_id, created_at DESC);
 CREATE INDEX idx_quiz_attempts_user_topic ON quiz_attempts(user_id, topic, created_at DESC);
 
 -- ============================================
 -- DONE! 24 TABLES CREATED
 -- ============================================
+
+-- ============================================
+-- INDEXES FOR STUDY MATERIALS (Phase 3)
+-- ============================================
+CREATE INDEX IF NOT EXISTS idx_study_guides_user ON study_guides(user_id);
+CREATE INDEX IF NOT EXISTS idx_study_guides_topic ON study_guides(topic);
+CREATE INDEX IF NOT EXISTS idx_flashcards_study_guide ON flashcards(study_guide_id);
+CREATE INDEX IF NOT EXISTS idx_flashcards_user_next_review ON flashcards(user_id, next_review_at);
+CREATE INDEX IF NOT EXISTS idx_flashcards_user_state ON flashcards(user_id, state);
+
+
+-- ============================================
+-- PHASE 4: LEARNING FEEDBACK LOOP
+-- ============================================
+
+-- Table: skill_levels
+-- Tracks overall skill level per topic with weak/strong spots
+CREATE TABLE IF NOT EXISTS skill_levels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  topic TEXT NOT NULL,
+  
+  -- Overall stats
+  confidence INTEGER NOT NULL DEFAULT 0 CHECK (confidence >= 0 AND confidence <= 100),
+  quizzes_taken INTEGER NOT NULL DEFAULT 0,
+  correct_answers INTEGER NOT NULL DEFAULT 0,
+  total_answers INTEGER NOT NULL DEFAULT 0,
+  accuracy FLOAT NOT NULL DEFAULT 0 CHECK (accuracy >= 0 AND accuracy <= 100),
+  
+  -- Concept-level tracking
+  weak_spots TEXT[] DEFAULT '{}',    -- Concepts with <50% accuracy
+  strong_spots TEXT[] DEFAULT '{}',  -- Concepts with >85% accuracy
+  
+  -- Temporal tracking
+  last_quiz_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Ensure one skill level per user per topic
+  UNIQUE(user_id, topic)
+);
+
+-- Table: concept_stats
+-- Tracks concept-level performance for adaptive learning
+CREATE TABLE IF NOT EXISTS concept_stats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  topic TEXT NOT NULL,
+  concept TEXT NOT NULL,
+  
+  -- Stats
+  attempts INTEGER NOT NULL DEFAULT 0,
+  correct INTEGER NOT NULL DEFAULT 0,
+  accuracy FLOAT NOT NULL DEFAULT 0 CHECK (accuracy >= 0 AND accuracy <= 100),
+  
+  -- Temporal tracking
+  last_attempt_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Ensure one stat per user per topic per concept
+  UNIQUE(user_id, topic, concept)
+);
+
+-- Indexes for skill tracking
+CREATE INDEX IF NOT EXISTS idx_skill_levels_user_id ON skill_levels(user_id);
+CREATE INDEX IF NOT EXISTS idx_skill_levels_topic ON skill_levels(topic);
+CREATE INDEX IF NOT EXISTS idx_skill_levels_confidence ON skill_levels(confidence DESC);
+CREATE INDEX IF NOT EXISTS idx_concept_stats_user_id ON concept_stats(user_id);
+CREATE INDEX IF NOT EXISTS idx_concept_stats_topic ON concept_stats(topic);
+CREATE INDEX IF NOT EXISTS idx_concept_stats_accuracy ON concept_stats(accuracy ASC);
+CREATE INDEX IF NOT EXISTS idx_concept_stats_user_topic ON concept_stats(user_id, topic);
+
+-- RLS Policies for skill tracking
+ALTER TABLE skill_levels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE concept_stats ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own skill levels" ON skill_levels FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own skill levels" ON skill_levels FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own skill levels" ON skill_levels FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own concept stats" ON concept_stats FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own concept stats" ON concept_stats FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own concept stats" ON concept_stats FOR UPDATE USING (auth.uid() = user_id);
+
+-- ============================================
+-- FIX (Nov 3): study_guides and flashcards had RLS enabled with no policies.
+-- For an EXISTING project, run supabase-migrations/20261103_sync_live_database.sql
+-- instead (it also adds FSRS columns the live database is missing).
+-- ============================================
+CREATE POLICY "Users can access own data" ON study_guides FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can access own data" ON flashcards FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own skill levels" ON skill_levels FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own concept stats" ON concept_stats FOR DELETE USING (auth.uid() = user_id);
