@@ -47,6 +47,8 @@ export interface Stats {
   fillerTotal: number;
   /** Pauses longer than 2.5 s after you'd started */
   longPauses: number;
+  /** A live interview: the interviewer's turns sit between yours, so long pauses aren't counted */
+  live?: boolean;
   longestPause: number;
 }
 
@@ -143,6 +145,8 @@ function wav16k(samples: Float32Array): Blob {
 export interface Audio {
   wav: Blob;
   seconds: number;
+  /** Time you were actually talking: first word to last, minus pauses over 2.5 s (a live interview has the interviewer's turns in between) */
+  talkSeconds: number;
   longPauses: number;
   longestPause: number;
 }
@@ -175,15 +179,19 @@ export async function readAudio(recording: Blob): Promise<Audio> {
   let run = 0;
   let longPauses = 0;
   let longest = 0;
+  let talk = 0;
   for (const r of rms) {
     if (r > threshold) {
       if (started && run * 0.05 >= 2.5) longPauses++;
       if (started) longest = Math.max(longest, run * 0.05);
+      // Short pauses count as talking; long ones (thinking, or the interviewer's turn) don't
+      if (started && run * 0.05 < 2.5) talk += run * 0.05;
+      talk += 0.05;
       started = true;
       run = 0;
     } else if (started) run++;
   }
-  return { wav: wav16k(mono), seconds: decoded.duration, longPauses, longestPause: Math.round(longest * 10) / 10 };
+  return { wav: wav16k(mono), seconds: decoded.duration, talkSeconds: Math.max(1, talk), longPauses, longestPause: Math.round(longest * 10) / 10 };
 }
 
 export async function transcribe(audio: Audio, keywords: string[]): Promise<string> {
@@ -193,13 +201,15 @@ export async function transcribe(audio: Audio, keywords: string[]): Promise<stri
 const FILLERS = ['um', 'uh', 'erm', 'er', 'like', 'you know', 'basically', 'actually', 'literally', 'sort of', 'kind of', 'i mean', 'right'];
 
 /** Pace and fillers, counted from the transcript (Muse Voice Transcribe keeps "um" and "uh") */
-export function deliveryStats(transcript: string, audio: Pick<Audio, 'seconds' | 'longPauses' | 'longestPause'>): Stats {
+export function deliveryStats(transcript: string, audio: Pick<Audio, 'seconds' | 'longPauses' | 'longestPause'> & { talkSeconds?: number }, live = false): Stats {
   const t = ` ${transcript.toLowerCase().replace(/[^a-z'\s]/g, ' ').replace(/\s+/g, ' ')} `;
   const words = t.trim() ? t.trim().split(' ').length : 0;
   const fillers = FILLERS.map((w) => ({ word: w, count: t.split(` ${w} `).length - 1 })).filter((f) => f.count > 0).sort((a, b) => b.count - a.count);
-  const minutes = Math.max(audio.seconds, 1) / 60;
+  const spoken = live && audio.talkSeconds ? audio.talkSeconds : audio.seconds;
+  const minutes = Math.max(spoken, 1) / 60;
   return {
-    seconds: Math.round(audio.seconds),
+    live,
+    seconds: Math.round(spoken),
     words,
     wpm: Math.round(words / minutes),
     fillers,
@@ -225,14 +235,18 @@ export function statNotes(s: Stats): { label: string; value: string; tone: 'good
       tone: per100 < 2 ? 'good' : per100 < 5 ? 'ok' : 'work',
       note: per100 < 2 ? 'Clean. Pauses instead of fillers sound confident.' : 'Swap a filler for a short silent pause. It sounds more sure.',
     },
+    ...(s.live
+      ? []
+      : [
+          {
+            label: 'Long pauses',
+            value: s.longPauses ? `${s.longPauses} over 2.5 s (longest ${s.longestPause} s)` : 'None over 2.5 s',
+            tone: (s.longPauses <= 1 ? 'good' : s.longPauses <= 3 ? 'ok' : 'work') as 'good' | 'ok' | 'work',
+            note: s.longPauses > 1 ? 'Plan your first sentence and your example before you start.' : 'You kept it flowing.',
+          },
+        ]),
     {
-      label: 'Long pauses',
-      value: s.longPauses ? `${s.longPauses} over 2.5 s (longest ${s.longestPause} s)` : 'None over 2.5 s',
-      tone: s.longPauses <= 1 ? 'good' : s.longPauses <= 3 ? 'ok' : 'work',
-      note: s.longPauses > 1 ? 'Plan your first sentence and your example before you start.' : 'You kept it flowing.',
-    },
-    {
-      label: 'Length',
+      label: s.live ? 'You talked for' : 'Length',
       value: `${Math.floor(s.seconds / 60)}:${String(s.seconds % 60).padStart(2, '0')}`,
       tone: s.seconds >= 45 && s.seconds <= 150 ? 'good' : 'ok',
       note: s.seconds < 45 ? 'Short. Add a specific example.' : s.seconds > 150 ? 'Long. Aim for about two minutes.' : 'A good length.',
@@ -249,18 +263,23 @@ const inTranscript = (quote: string | undefined, transcript: string) => {
   return norm(transcript).includes(norm(quote)) && norm(quote).length > 6 ? quote : undefined;
 };
 
-export async function reviewAnswer(input: { role: string; kind: Kind; scenario: Scenario; transcript: string; stats: Stats; frames: string[] }): Promise<Review> {
+export async function reviewAnswer(input: { role: string; kind: Kind; scenario: Scenario; transcript: string; stats: Stats; frames: string[]; dialogue?: string }): Promise<Review> {
   if (!museReady) throw new Error('Ropi’s assistant isn’t set up, so it can’t review this.');
   const me = profileForPrompt();
+  const said = input.dialogue
+    ? `This was a live interview. The whole conversation, word for word (Interviewer / Candidate):
+"""${input.dialogue.slice(0, 9000)}"""
+Review the candidate's answers across the whole interview. Quotes must be the candidate's own words.`
+    : `Their answer, transcribed word for word:
+"""${input.transcript.slice(0, 6000)}"""`;
   const text = `${me ? me + '\n' : ''}You are a warm, honest speaking coach helping someone reach the top 10% in their field. They practised for: ${input.role}.
 Type: ${KINDS.find((k) => k.id === input.kind)!.label}.
-The scenario they answered: "${input.scenario.prompt}"
+The ${input.dialogue ? 'opening question' : 'scenario they answered'}: "${input.scenario.prompt}"
 A strong answer covers: ${input.scenario.lookFor.join('; ')}
 
-Their answer, transcribed word for word:
-"""${input.transcript.slice(0, 6000)}"""
+${said}
 
-Measured from the recording: ${input.stats.seconds} s, ${input.stats.wpm} words a minute, ${input.stats.fillerTotal} filler words${input.stats.fillers.length ? ` (${input.stats.fillers.map((f) => `${f.word} x${f.count}`).join(', ')})` : ''}, ${input.stats.longPauses} pauses over 2.5 s.
+Measured from the recording: ${input.stats.seconds} s of talking, ${input.stats.wpm} words a minute, ${input.stats.fillerTotal} filler words${input.stats.fillers.length ? ` (${input.stats.fillers.map((f) => `${f.word} x${f.count}`).join(', ')})` : ''}${input.stats.live ? '' : `, ${input.stats.longPauses} pauses over 2.5 s`}.
 ${input.frames.length ? `The ${input.frames.length} images are still frames from their camera, in order (frame 1 first).` : 'There is no video.'}
 
 Review it like a great coach: specific, kind, direct. Use their own words.

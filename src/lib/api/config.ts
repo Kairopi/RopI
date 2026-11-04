@@ -20,6 +20,13 @@ export const museReady = museViaProxy || !!KEY;
 /** Live listening opens a WebSocket straight to Meta, which needs the key in the browser: local development only */
 export const museRealtimeKey: string | undefined = museViaProxy ? undefined : KEY;
 
+/** Your Ropi session, for Ropi's own server functions (/api/interviewer) */
+export async function sessionAuth(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /** Authorization for a model call: your session (deployed) or the key (local) */
 export async function museAuth(): Promise<Record<string, string>> {
   if (!museViaProxy) return KEY ? { Authorization: `Bearer ${KEY}` } : {};

@@ -22,6 +22,8 @@ import { recordReceipt } from '@/lib/receipts';
 import { speechManager } from '@/lib/voice/speech-manager';
 import { listenWithMuse, museListenAvailable, stopMuseListening } from '@/lib/voice/muse-listen';
 import { museViaProxy } from '@/lib/api/config';
+import { startLiveInterview, type LiveSession, type LiveTurn } from '@/lib/interview/live';
+import { profileForPrompt } from '@/hooks/useProfile';
 import {
   KINDS,
   average,
@@ -72,6 +74,18 @@ export default function Interview() {
   const [elapsed, setElapsed] = useState(0);
   const [countdown, setCountdown] = useState<number | null>(null);
   const liveText = useRef<Promise<string> | null>(null);
+
+  // Live interview: Ropi asks, listens, and follows up out loud
+  const [mode, setMode] = useState<'live' | 'single'>('live');
+  const [turns, setTurns] = useState<LiveTurn[]>([]);
+  const turnsRef = useRef<LiveTurn[]>([]);
+  const [who, setWho] = useState<'ropi' | 'you' | null>(null);
+  const session = useRef<LiveSession | null>(null);
+  const finishing = useRef(false);
+  const transcriptBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    transcriptBox.current?.scrollTo({ top: transcriptBox.current.scrollHeight, behavior: 'smooth' });
+  }, [turns]);
 
   // Result
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -171,8 +185,37 @@ export default function Interview() {
     if (video) video.ondataavailable = (e) => e.data.size && r.chunksV.push(e.data);
     recs.current = r;
     frames.current = [];
+    finishing.current = false;
+    if (mode === 'live') {
+      turnsRef.current = [];
+      setTurns([]);
+      setWho('ropi');
+      try {
+        session.current = await startLiveInterview(
+          { role: role || 'Project Manager', kind: ({ interview: 'interview', present: 'presentation practice', onboard: 'onboarding conversation', stakeholder: 'tough stakeholder conversation' } as const)[kind], scenario: scenario.prompt, about: profileForPrompt() },
+          {
+            onTurn: (t) => {
+              turnsRef.current = [...turnsRef.current, t];
+              setTurns(turnsRef.current);
+            },
+            onMode: setWho,
+            onStatus: () => undefined,
+            onError: (m) => setError(m),
+            // The interviewer wraps up on its own after about five questions
+            onEnd: () => void finish(),
+          }
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Couldn’t start the live interview.');
+        audio.stop();
+        video?.stop();
+        recs.current = null;
+        return;
+      }
+      liveText.current = null;
+    }
     // Transcribe while you speak, so the words are ready the moment you stop
-    liveText.current = museListenAvailable()
+    else liveText.current = museListenAvailable()
       ? listenWithMuse({ manual: true, maxMs: 200000, noSpeechMs: 190000, keywords: [role, 'stakeholder', 'scope', 'roadmap', 'sprint'].filter(Boolean) })
           .then((h) => h.transcript)
           .catch(() => '')
@@ -194,7 +237,15 @@ export default function Interview() {
 
   const finish = async () => {
     const r = recs.current;
-    if (!r || !scenario) return;
+    if (!r || !scenario || finishing.current) return;
+    finishing.current = true;
+    const wasLive = !!session.current;
+    if (session.current) {
+      const s = session.current;
+      session.current = null;
+      await s.end();
+      setWho(null);
+    }
     clearInterval(frameTimer.current);
     grab();
     const stopped = (m?: MediaRecorder) => new Promise<void>((res) => (!m || m.state === 'inactive' ? res() : ((m.onstop = () => res()), m.stop())));
@@ -211,6 +262,36 @@ export default function Interview() {
     setError(null);
     try {
       const t0 = performance.now();
+      if (wasLive) {
+        const mine = turnsRef.current.filter((t) => t.who === 'you' && t.text !== '...').map((t) => t.text);
+        if (mine.join(' ').trim().split(/\s+/).length < 5) throw new Error('The interview ended before you answered. Start it again when you’re ready.');
+        const audio = await readAudio(audioBlob);
+        const text = mine.join('\n');
+        setTranscript(turnsRef.current.map((t) => `${t.who === 'you' ? 'You' : 'Interviewer'}: ${t.text}`).join('\n\n'));
+        setStep(1);
+        const st = deliveryStats(text, audio, true);
+        setStats(st);
+        setStep(pick.length ? 2 : 3);
+        const dialogue = turnsRef.current.map((t) => `${t.who === 'you' ? 'Candidate' : 'Interviewer'}: ${t.text}`).join('\n');
+        const rv = await reviewAnswer({ role: role || 'Project Manager', kind, scenario, transcript: text, stats: st, frames: pick, dialogue });
+        console.info(`[studio] live review done ${Math.round(performance.now() - t0)} ms after you stopped`);
+        setStep(4);
+        setReview(rv);
+        setPhase('review');
+        const entry = { at: new Date().toISOString(), role: role || 'Project Manager', kind, title: `Live: ${scenario.title}`, scores: rv.scores, wpm: st.wpm, fillers: st.fillerTotal };
+        savePractice(entry);
+        setPast(loadPractice());
+        void recordReceipt({
+          domain: 'job',
+          kind: 'job.practice_answer',
+          actor: 'user',
+          verification: 'system_recorded',
+          title: `Practised a live interview: ${scenario.title}`,
+          detail: `${entry.role}. ${mine.length} answers, ${average(rv.scores)}/5 overall, ${st.wpm} words a minute.`,
+          evidence: { scores: rv.scores, answers: mine.length, wpm: st.wpm, fillers: st.fillerTotal },
+        });
+        return;
+      }
       stopMuseListening();
       const [audio, heardLive] = await Promise.all([
         readAudio(audioBlob),
@@ -281,6 +362,26 @@ export default function Interview() {
                 The role you’re going for
                 <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Project Manager" className="mt-1.5" />
               </label>
+              <div className="mt-4 text-[13px] font-medium">How</div>
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How to practise">
+                {(
+                  [
+                    ['live', 'Live, out loud', 'Ropi asks, listens, and follows up on what you say. Like the real thing.'],
+                    ['single', 'One question at a time', 'Answer one scenario, then get the review.'],
+                  ] as const
+                ).map(([id, label, note]) => (
+                  <button
+                    key={id}
+                    role="radio"
+                    aria-checked={mode === id}
+                    onClick={() => setMode(id)}
+                    className={cn('rounded-xl border bg-card px-3.5 py-2.5 text-left transition-colors', mode === id ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/40')}
+                  >
+                    <span className="block text-[13.5px] font-semibold">{label}</span>
+                    <span className="block text-[12px] text-muted-foreground">{note}</span>
+                  </button>
+                ))}
+              </div>
               <div className="mt-4 text-[13px] font-medium">What to practise</div>
               <div className="mt-1.5 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="What to practise">
                 {KINDS.map((k) => (
@@ -395,18 +496,27 @@ export default function Interview() {
                   </div>
                 )}
                 {phase === 'recording' && camOn && <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-[11.5px] text-white/85">Look at the camera, not the screen</div>}
+                {phase === 'recording' && mode === 'live' && (
+                  <div className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-[12.5px] font-medium text-white" aria-live="polite">
+                    <span className={cn('h-2 w-2 rounded-full', who === 'ropi' ? 'animate-pulse bg-sky-400' : 'bg-emerald-400')} />
+                    {who === 'ropi' ? 'Interviewer speaking' : 'Listening to you'}
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2 p-3">
                 {phase === 'ready' && (
                   <Button onClick={record}>
                     <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-                    Start answering
+                    {mode === 'live' ? 'Start the interview' : 'Start answering'}
                   </Button>
                 )}
                 {phase === 'recording' && (
                   <Button onClick={finish} variant="destructive">
-                    I’m done
+                    {mode === 'live' ? 'End and get my review' : 'I’m done'}
                   </Button>
+                )}
+                {phase === 'recording' && mode === 'live' && (
+                  <span className="text-[12.5px] text-muted-foreground">{who === 'ropi' ? 'The interviewer is talking. You can cut in.' : 'Your turn. Take your time.'}</span>
                 )}
                 {phase === 'working' && (
                   <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -463,7 +573,25 @@ export default function Interview() {
               </Card>
             )}
 
-            {phase !== 'review' && phase !== 'working' && (
+            {phase === 'recording' && mode === 'live' && (
+              <Card className="p-0">
+                <div className="border-b px-4 py-3 text-[13.5px] font-semibold">The conversation</div>
+                <div ref={transcriptBox} className="max-h-[420px] space-y-3 overflow-y-auto px-4 py-3">
+                  {turns.length === 0 && <p className="text-[13px] text-muted-foreground">Connecting to your interviewer…</p>}
+                  {turns
+                    .filter((t) => t.text !== '...')
+                    .map((t, i) => (
+                      <div key={i} className={cn('flex', t.who === 'you' ? 'justify-end' : 'justify-start')}>
+                        <div className={cn('max-w-[88%] rounded-2xl px-3.5 py-2 text-[13.5px] leading-relaxed', t.who === 'you' ? 'rounded-br-md bg-foreground text-background' : 'rounded-bl-md border bg-card')}>
+                          {t.text}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </Card>
+            )}
+
+            {phase !== 'review' && phase !== 'working' && !(phase === 'recording' && mode === 'live') && (
               <Card className="p-5 text-[13.5px] leading-relaxed text-muted-foreground">
                 <div className="font-semibold text-foreground">Before you start</div>
                 <ul className="mt-2 list-disc space-y-1 pl-5">

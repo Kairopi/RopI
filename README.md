@@ -96,7 +96,18 @@ The Meta key never reaches the browser in production. Model calls go to `/api/mu
    - `MUSE_API_KEY`: the Meta Model API key (server only, **no** `VITE_` prefix)
    - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`: as in `.env` (these are public by design)
    - Don't add `VITE_MUSE_API_KEY`.
+   - For the live interviewer: `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ROPI_LLM_SECRET` (all server only)
 3. Deploy. In Supabase, Authentication > URL Configuration, add the Vercel URL.
+4. Point the interviewer's brain at the deployment: `node .tmp-check/make-interviewer.mjs https://<your-domain>/api/llm` (updates the ElevenLabs agent; reads keys from `.env`).
+
+### The live interviewer
+
+Practice > **Live, out loud** is a real spoken interview: the interviewer asks, listens, follows up on what you actually said (or brings you back if you drift), and wraps up after about five questions. Then you get the same review as a single answer, over the whole conversation.
+
+It's built the way production voice agents are (Pipecat, LiveKit Agents, ElevenLabs Agents): streaming speech-to-text, a turn detector set to "patient", the model streaming its reply, and streaming speech that starts on the first words, with barge-in.
+- **Ears, turn-taking and voice:** ElevenLabs Agents (Flash v2 voice).
+- **Brain:** Meta's Muse Spark. The agent calls Ropi's `/api/llm` as a custom LLM. That function keeps only the fields Meta accepts (ElevenLabs adds `user_id` and `elevenlabs_extra_body`, which Meta rejects), sets minimal reasoning so replies start fast, and streams Muse's answer back. Measured: the interviewer's reply text arrives about 150 ms after your words are transcribed. Only ElevenLabs can call it (it signs with `ROPI_LLM_SECRET`); the Meta key stays on Ropi's server.
+- **Start:** `/api/interviewer` gives a signed-in user a one-time ElevenLabs link; the ElevenLabs key never reaches the page.
 
 Live listening (the realtime WebSocket) needs the key in the browser, so deployed Talk listens with the browser's own speech recognition (Chrome, Edge, Safari), and the practice studio transcribes your recording through the function (answers up to about 2 minutes). Everything else is the same. Checked with the production build served like Vercel: 9 model calls through `/api/muse`, none straight to Meta, no key in the page.
 

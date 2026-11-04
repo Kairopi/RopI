@@ -5,6 +5,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/muse/:path*", "destination": "/api/muse?path=:path*" },
+    { "source": "/api/llm/chat/completions", "destination": "/api/llm" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
