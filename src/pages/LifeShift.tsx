@@ -156,7 +156,6 @@ export default function LifeShift() {
   return (
     <DashboardLayout>
       <PageHeader
-        eyebrow="LifeShift"
         title="Say what changed."
         description="Only the blocks that lose their time move, and each one says why."
         actions={

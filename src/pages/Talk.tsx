@@ -21,6 +21,7 @@ import { ArrowRight, Check, ExternalLink, Loader2, Mic, MicOff, Pause, Play, Plu
 import { useUserId } from '@/contexts/AuthContext';
 import { usePlan } from '@/hooks/usePlan';
 import { useWeek } from '@/hooks/useWeek';
+import { useLoop } from '@/hooks/useLoop';
 import { speechManager, SpeechError } from '@/lib/voice/speech-manager';
 import { respond, speakable, type Reply } from '@/lib/coach/brain';
 import { newConversation, saveConversation, saveTopic, listTopics, topicKey, type Conversation, type Turn, type SavedLink } from '@/lib/library/store';
@@ -33,16 +34,17 @@ import { cn } from '@/lib/utils';
 type State = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const SUGGESTIONS = [
+  'I have 10 minutes on the train',
   'I’m lost. What does a project charter mean?',
   'Quiz me on my weakest topic',
   'Latest news on project management',
   'A podcast for my commute',
-  'What should I do today?',
   'Find product manager jobs in London',
 ];
 
 const STOP_WORDS = /^(stop|stop listening|that'?s all|thanks?,? (that'?s all|bye)|bye|goodbye|cancel|pause)\b/i;
 const PLAY_WORDS = /\b(play (it|that|the (first|latest) one)|start (it|the episode))\b/i;
+const START_WORDS = /^(ok(ay)?,? )?(start|go|let'?s (go|start|do it)|start (it|the first( one)?)|yes,? start|do it)[.!]?$/i;
 
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
@@ -64,6 +66,9 @@ export default function Talk() {
   const { plan } = usePlan();
   const goal = useWeek((s) => s.goal);
   const addTask = useWeek((s) => s.addTask);
+  const dueCards = useLoop((s) => s.dueCards);
+  const weakSpots = useLoop((s) => s.weakSpots);
+  const loopJobs = useLoop((s) => s.jobs);
   const support = speechManager.getSupport();
 
   const [state, setState] = useState<State>('idle');
@@ -208,6 +213,11 @@ export default function Talk() {
         return;
       }
       const lastReply = Object.entries(repliesRef.current).sort((a, b) => Number(b[0]) - Number(a[0]))[0]?.[1];
+      // "Start" after a spare-minutes plan opens its first step
+      if (START_WORDS.test(text) && lastReply?.steps?.[0]) {
+        openRef.current?.(lastReply.steps[0].href);
+        return;
+      }
       if (PLAY_WORDS.test(text) && lastReply?.podcasts?.[0]?.episode?.audioUrl) {
         setPlaying(lastReply.podcasts[0].episode.audioUrl);
         setState('idle');
@@ -223,7 +233,7 @@ export default function Talk() {
       setConvo(withYou);
       setState('thinking');
 
-      const reply = await respond(text, { userId, plan: planContext, goal: goal?.title ?? null, history: withYou.turns, addTask });
+      const reply = await respond(text, { userId, plan: planContext, goal: goal?.title ?? null, history: withYou.turns, addTask, spare: { dueCards, weakSpots, jobs: loopJobs } });
       if (run.current !== id) return;
 
       const ropi: Turn = { role: 'ropi', text: reply.text, at: new Date().toISOString(), kind: `${reply.intent}:${reply.topic ?? ''}`, sources: reply.sources };
@@ -246,13 +256,31 @@ export default function Talk() {
       if (prefRef.current.handsFree && support.stt && !prefRef.current.muted) void listenRef.current?.();
       else setState('idle');
     },
-    [userId, planContext, goal, addTask, persist, say, navigate, support.stt]
+    [userId, planContext, goal, addTask, persist, say, navigate, support.stt, dueCards, weakSpots, loopJobs]
   );
   // listen() and handle() call each other: go through refs so neither holds stale state
   const handleRef = useRef(handle);
   handleRef.current = handle;
   const listenRef = useRef(listen);
   listenRef.current = listen;
+
+  /** Open a step: Talk links are asked right here, anything else is a page */
+  const open = useCallback(
+    (href: string) => {
+      const ask = href.startsWith('/talk?') ? new URLSearchParams(href.slice(6)).get('q') : null;
+      if (ask) {
+        void handleRef.current?.(ask);
+        return;
+      }
+      run.current++;
+      speechManager.stopSpeaking();
+      speechManager.stopListening();
+      navigate(href);
+    },
+    [navigate]
+  );
+  const openRef = useRef(open);
+  openRef.current = open;
 
   // Opened with ?q= (e.g. from a topic folder): ask it straight away
   const asked = useRef(false);
@@ -288,7 +316,6 @@ export default function Talk() {
         {/* Header */}
         <div className="mb-2 flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <div className="eyebrow">Talk to Ropi</div>
             {!empty && <div className="truncate text-[12.5px] text-muted-foreground">Started {fmtTime(convo.started_at)} · saved as you go</div>}
           </div>
           <Button size="sm" variant="ghost" onClick={() => setShowVoice((s) => !s)} aria-expanded={showVoice}>
@@ -360,7 +387,7 @@ export default function Talk() {
             <div className="pt-6 text-center">
               <h1 className="text-[26px] font-semibold leading-tight">What do you need right now?</h1>
               <p className="mx-auto mt-2 max-w-md text-[14px] text-muted-foreground">
-                Tap the mic and talk. Ask what something means, get quizzed, catch up on news, find a podcast or jobs, or get help with an application.
+                Say how much time you have, or just ask. Ropi answers out loud, so you can keep getting ready, walking or waiting.
               </p>
               <div className="mx-auto mt-6 flex max-w-lg flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((s) => (
@@ -384,7 +411,7 @@ export default function Talk() {
                   {t.text}
                 </div>
                 <div className="mt-1 px-1 text-[11px] text-muted-foreground">{fmtTime(t.at)}</div>
-                {t.role === 'ropi' && replies[i] && <ReplyExtras reply={replies[i]} userId={userId} playing={playing} setPlaying={setPlaying} onOpen={(href) => { stop(); navigate(href); }} />}
+                {t.role === 'ropi' && replies[i] && <ReplyExtras reply={replies[i]} userId={userId} playing={playing} setPlaying={setPlaying} onOpen={open} />}
               </div>
             </motion.div>
           ))}
@@ -583,7 +610,24 @@ function ReplyExtras({
         </div>
       )}
 
-      {reply.open && (
+      {reply.steps && reply.steps.length > 0 && (
+        <ol className="divide-y overflow-hidden rounded-xl border bg-card" aria-label="What to do with your minutes">
+          {reply.steps.map((s) => (
+            <li key={s.id}>
+              <button onClick={() => onOpen(s.href)} className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/60">
+                <span className="w-11 shrink-0 text-[12px] tabular-nums text-muted-foreground">{s.minutes} min</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-medium">{s.title}</span>
+                  <span className="block text-[11.5px] leading-snug text-muted-foreground">{s.why}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {reply.open && !reply.steps?.length && (
         <Button size="sm" variant={reply.open.auto ? 'default' : 'outline'} onClick={() => onOpen(reply.open!.href)}>
           {reply.open.label}
           <ArrowRight />

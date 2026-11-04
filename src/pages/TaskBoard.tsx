@@ -88,7 +88,6 @@ export default function TaskBoard() {
   return (
     <DashboardLayout>
       <PageHeader
-        eyebrow="Tasks"
         title="What’s on your plate"
         description="Each task is placed in your free time before it’s due."
         actions={

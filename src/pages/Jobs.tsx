@@ -106,7 +106,6 @@ export default function Jobs() {
   return (
     <DashboardLayout>
       <PageHeader
-        eyebrow="Jobs"
         title="Your job search"
         description="Save roles, check your resume against each one, then apply yourself. Ropi never applies for you."
         actions={

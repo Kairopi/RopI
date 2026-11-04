@@ -65,7 +65,7 @@ export function WeekInReview({ userId }: { userId: string }) {
   const activeDays = days.filter((d) => d.count > 0).length;
 
   const stats = [
-    { label: 'Focus time', value: focusMin >= 60 ? `${Math.round((focusMin / 60) * 10) / 10}h` : `${focusMin}m` },
+    { label: 'Growth time', value: focusMin >= 60 ? `${Math.round((focusMin / 60) * 10) / 10}h` : `${focusMin}m` },
     { label: 'Quizzes', value: String(rows?.quizzes.length ?? 0) },
     { label: 'Cards reviewed', value: String(rows?.reviews.length ?? 0) },
     { label: 'Tasks done', value: String(done.length) },
@@ -115,7 +115,7 @@ export function WeekInReview({ userId }: { userId: string }) {
           {rows === null
             ? 'Loading your week...'
             : activeDays === 0
-            ? 'Nothing logged yet. One quiz starts the streak.'
+            ? 'Nothing yet. Five spare minutes today puts the first bar here.'
             : `${rows.applied.length} application${rows.applied.length === 1 ? '' : 's'} sent.`}
         </p>
       )}

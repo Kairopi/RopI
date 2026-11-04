@@ -343,8 +343,8 @@ export default function Setup() {
             </Button>
           )}
           {step < 2 ? (
-            <Button onClick={() => setStep(step + 1)} disabled={!canNext}>
-              {step === 0 && !goal.trim() ? 'Skip' : 'Continue'}
+            <Button onClick={() => setStep(step + 1)} disabled={!canNext} variant={step === 0 && !goal.trim() ? 'outline' : 'default'}>
+              {step === 0 && !goal.trim() ? 'Skip for now' : 'Continue'}
               <ArrowRight />
             </Button>
           ) : (

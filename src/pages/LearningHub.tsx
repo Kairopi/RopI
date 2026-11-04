@@ -33,7 +33,6 @@ export default function LearningHub() {
   return (
     <DashboardLayout>
       <PageHeader
-        eyebrow="Learning Hub"
         title="Study guides"
         description="Everything Meta Muse wrote for you from a topic or a document, with the flashcards you kept."
         actions={

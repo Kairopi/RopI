@@ -5,13 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/Logo';
-import { ShiftDemo } from '@/components/brand/ShiftDemo';
+import { MinutesDemo } from '@/components/brand/MinutesDemo';
 
+// What a few minutes buys, in the product's own terms
 const PROOF = [
-  // Measured in the browser: 0.3-0.9 ms per replan (see LifeShift badge)
-  { k: '~1 ms', v: 'to replan a whole week' },
-  { k: '1 quiz', v: 'to find a real weak spot' },
-  { k: 'FSRS', v: 'spaced review for every miss' },
+  { k: '2 min', v: 'the idea you keep missing, explained out loud' },
+  { k: '5 min', v: 'the cards you’re about to forget' },
+  { k: '20 min', v: 'a head start on the job that closes Friday' },
 ];
 
 export default function Login() {
@@ -55,15 +55,15 @@ export default function Login() {
         <Logo size={26} tone="white" className="relative" />
 
         <div className="relative">
-          <h1 className="font-display text-[52px] xl:text-[60px] font-semibold leading-[1.02] tracking-[-0.04em] text-white max-w-[12ch]">
-            A plan that moves when life does.
+          <h1 className="font-display text-[52px] xl:text-[60px] font-semibold leading-[1.02] tracking-[-0.04em] text-white max-w-[13ch]">
+            Turn dead time into growth time.
           </h1>
           <p className="mt-5 max-w-[46ch] text-[16px] leading-relaxed text-white/80">
-            Ropi schedules your study and job applications around your real free time. Tell it what changed and the week
-            replans itself. Every quiz shows exactly what to practice next.
+            For people studying and job hunting around a full life. Tell Ropi how long you have, on the train or getting
+            ready, and it picks the one thing worth doing. When the week changes, the plan moves with it.
           </p>
           <div className="mt-10">
-            <ShiftDemo />
+            <MinutesDemo />
           </div>
         </div>
 
@@ -83,9 +83,9 @@ export default function Login() {
           <h1 aria-label="Ropi" className="mb-10 lg:hidden">
             <Logo size={28} />
           </h1>
+          <p className="-mt-6 mb-10 font-display text-[22px] font-semibold leading-tight tracking-[-0.02em] lg:hidden">Turn dead time into growth time.</p>
 
-          <div className="eyebrow mb-3">Welcome</div>
-          <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.03em]">Start your week</h2>
+          <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.03em]">Start growing</h2>
           <p className="mt-2 text-[15px] text-muted-foreground">No email or password. Your progress is saved to a private account in this browser.</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">

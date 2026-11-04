@@ -1,7 +1,7 @@
 /**
- * Today - the answer to "what do I do with my next free block, and why?"
+ * Today - the answer to "what do I do with the time I have, and why?"
  *
- * Up next + add, then the week (click any empty time to add to it), then what
+ * Got a few minutes (dead time, right now), then up next + add, then the week (click any empty time to add to it), then what
  * Ropi added from your quizzes and jobs, and what you actually did.
  * Every section below the fold can be collapsed.
  */
@@ -16,6 +16,7 @@ import WeekCanvas, { WeekLegend, weekRangeLabel } from '../components/WeekCanvas
 import { PageHeader } from '../components/PageHeader';
 import { Panel } from '@/components/Panel';
 import { QuickAdd } from '@/components/QuickAdd';
+import { SpareMinutes } from '@/components/SpareMinutes';
 import { CheckIn } from '@/components/CheckIn';
 import { WeekInReview } from '@/components/WeekInReview';
 import { WeekItemDialog, type WeekItem } from '@/components/WeekItemDialog';
@@ -129,6 +130,8 @@ export default function Dashboard() {
         }
       />
 
+      <SpareMinutes className="mb-6" />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
         <UpNext block={next} task={nextTask} after={upcoming.slice(1, 3)} tasksById={tasksById} hasFreeTime={week.windows.length > 0} />
         <div className="flex flex-col gap-6">
@@ -176,8 +179,9 @@ export default function Dashboard() {
         <p className="mt-3 text-[11.5px] text-muted-foreground">Click any empty time to add something. Click a block to see it.</p>
       </Panel>
 
+      {(loopAdded.length > 0 || loopLoading) && (
       <div className="mt-6">
-        {/* What the loop added */}
+        {/* What the loop added (hidden until there is something: Got a few minutes covers the start) */}
         <Panel
           id="today-loop"
           title="Added by Ropi"
@@ -237,6 +241,7 @@ export default function Dashboard() {
           )}
         </Panel>
       </div>
+      )}
 
       <WeekItemDialog item={item} onClose={() => setItem(null)} />
     </DashboardLayout>

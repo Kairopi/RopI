@@ -278,7 +278,6 @@ export default function Learning() {
   return (
     <DashboardLayout>
       <PageHeader
-        eyebrow="Learn"
         title="Find the gaps, then fix them"
         description="Every concept is scored. What you miss comes back right before you’d forget it."
         actions={

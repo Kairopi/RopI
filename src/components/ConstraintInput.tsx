@@ -113,7 +113,7 @@ export default function ConstraintInput({ onSubmit, isLoading, previewImpact }: 
         />
         <div className="flex items-center gap-2 px-2.5 pb-2.5">
           <span className="text-[11.5px] text-muted-foreground">
-            {listening ? 'Speak now…' : <><kbd aria-hidden="true" className="num rounded border bg-card px-1 py-px text-[10.5px]">Enter</kbd> to read it</>}
+            {listening ? 'Speak now…' : <><kbd aria-hidden="true" className="num rounded border bg-card px-1 py-px text-[10.5px]">Enter</kbd> to preview</>}
           </span>
           {canListen && (
             <Button
@@ -130,7 +130,7 @@ export default function ConstraintInput({ onSubmit, isLoading, previewImpact }: 
           )}
           <Button size="sm" className={canListen ? '' : 'ml-auto'} onClick={() => runParse(input)} disabled={busy || listening || !input.trim()}>
             {isParsing && <Loader2 className="animate-spin" />}
-            {isParsing ? 'Reading' : 'Understand'}
+            {isParsing ? 'Reading it' : 'Preview'}
           </Button>
         </div>
       </div>

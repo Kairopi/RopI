@@ -1,6 +1,6 @@
 # Ropi
 
-Ropi plans your study and job search around the free time you actually have, and replans when your week changes. It is built for the Meta Global AI Developer Hackathon 2026, with Meta's Muse models for the language work.
+**Turn your dead time into growth time.** Ropi is a study and career coach for people who are studying and job hunting around a full life: they moved abroad, they're changing careers, they're working toward a certification. They don't get free evenings, they get 5 minutes on the platform and 20 on the bus. Ropi makes those minutes count, and plans the bigger work around the free time they actually have, replanning when the week changes. It is built for the Meta Global AI Developer Hackathon 2026, with Meta's Muse models for the language work.
 
 You tell Ropi when you're free and what you need to do. It places each task in your free time before it's due. When something changes ("manager added a shift, only 20 min tonight"), only the blocks that lost their time move, and each one says why. Quizzes, review cards and job deadlines feed the same week, so a question you miss becomes a practice block and a closing date becomes time to apply.
 
@@ -8,8 +8,8 @@ You tell Ropi when you're free and what you need to do. It places each task in y
 
 | Page | What it's for |
 |---|---|
-| **Today** | What to do next and why. Your week on a 24-hour calendar with dates: click empty time to add something to do or busy time, click a block to start it or mark it done. Check-ins after a planned block ends ("Done, took 30 min"). Last 7 days. |
-| **Talk** | Hands-free, for small gaps in the day. Say "I'm lost, what does a project charter mean?", "quiz me", "latest news on PMP", "a podcast for my commute", "remind me to read chapter 4 tomorrow", "find product manager jobs in London", or "help me answer this form question". Ropi answers out loud in the voice you pick, keeps listening until you say stop, and saves every conversation with the time of each message. |
+| **Today** | **Got a few minutes?** Pick 2, 5, 10 or 20 minutes and whether you can look at the screen. Ropi lists up to three things that fit, from your own data: the cards FSRS says are due, the concept you score worst on, a job that closes in the next 3 days, a short news brief on your goal. Audio only keeps to things Ropi can say out loud. Then what to do next and why. Your week on a 24-hour calendar with dates: click empty time to add something to do or busy time, click a block to start it or mark it done. Check-ins after a planned block ends ("Done, took 30 min"). Last 7 days. |
+| **Talk** | Hands-free, for small gaps in the day. Say "I have 10 minutes on the train" and Ropi says how to spend them ("start" opens the first one). Or "I'm lost, what does a project charter mean?", "quiz me", "latest news on PMP", "a podcast for my commute" ("under 15 minutes" picks an episode that fits), "remind me to read chapter 4 tomorrow", "find product manager jobs in London", or "help me answer this form question". Ropi answers out loud in the voice you pick, keeps listening until you say stop, and saves every conversation with the time of each message. |
 | **LifeShift** | Say or type what changed. Meta Muse turns the sentence into a constraint, the scheduler replans, moved blocks travel to their new slot, and anything that no longer fits gets concrete fixes ("Do 135 min instead", "Skip it this week"). |
 | **Learn** | A folder for each topic you study, which you can rename and add subtopics to. Each folder holds its documents, quizzes (dated), review cards, conversations with Ropi, and links you or Ropi saved. Quizzes score each concept separately. Missed questions become FSRS review cards. Meta Muse writes a short lesson on your weakest concept. Upload a PDF or DOCX and get a quiz where every answer quotes the exact line it came from. Voice quizzes. |
 | **Jobs** | One search across five job sources: Job Seek (company career pages), Remotive, Remote OK, Jobicy and Arbeitnow. Saving a job keeps its full description. Score your resume against it, tailor the resume with Meta Muse, approve it, then apply yourself on the source's site. A Board view shows every job by stage. |
@@ -45,6 +45,7 @@ Where a result can be checked, it is: quotes against the document, citations aga
 
 What isn't a model:
 - **Scheduling** is a constraint scheduler adapted from smart-agentic-calendar.
+- **Got a few minutes?** is a small set of rules (lib/spare/plan.ts). It never plans more minutes than you said.
 - **Review timing** is FSRS (`ts-fsrs` 6.0.0).
 - **Resume scoring** is deterministic. It checks the job description's key terms, named skills, job title, resume sections and gaps between jobs.
 - **Voice** uses the browser's Web Speech API.
@@ -81,14 +82,15 @@ Other commands: `npm run build`, `npm run typecheck`.
 
 End-to-end browser tests (Playwright) run against the live Supabase project and Meta API:
 
-- the main flow: onboarding, quiz, weak spot, review cards, lesson, LifeShift, Ask Ropi, check-in, History
+- the main flow: onboarding, quiz, weak spot, review cards, lesson, LifeShift, Ask Ropi, check-in, History, and Got a few minutes picking the new weak spot
+- spare minutes: the plan fits the time, Audio only has no screen tasks, the choice is remembered, Start opens the step, and Talk answers "I have 10 minutes on the train"
 - the calendar: add busy time, add a task, open a block, collapse a section
 - PDF upload to a quoted quiz
 - jobs: search, save with description, score, tailor, I applied, History
 - the Board
 - History backfill and the phone calendar
 
-Logic suites cover the scheduler, week logic, voice command parsing, document sources, FSRS previews and resume scoring.
+Logic suites cover the spare-minutes picker, the scheduler, week logic, voice command parsing, document sources, FSRS previews and resume scoring.
 
 These test scripts live in `.tmp-check/`, which is not committed yet.
 

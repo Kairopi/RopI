@@ -9,6 +9,7 @@
  *      podcast   Apple Podcasts search, with each show's latest episode to play
  *      quiz      starts a hands-free voice quiz on the topic
  *      plan      your plan, quiz history and cards, cited (Ask Ropi)
+ *      spare     "I have 10 minutes on the train": the best use of that time, from your data
  *      add       adds a task to your week (Ropi finds the time)
  *      jobs      searches the 5 job sources
  *      cv        tailors your resume for your latest saved job (you review it)
@@ -26,8 +27,9 @@ import { searchAllJobs, type JobPosting } from '@/lib/jobs/sources';
 import { getBaseResume, getUserJobs, tailorResumeForJob } from '@/lib/jobs/job-service';
 import { parseQuickAdd } from '@/lib/week/quick-add';
 import type { Turn } from '@/lib/library/store';
+import { parseSpareRequest, planSpareTime, speakPlan, type SpareInput, type SpareStep } from '@/lib/spare/plan';
 
-export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'plan' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'chat';
+export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'plan' | 'spare' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'chat';
 
 export interface Routed {
   intent: Intent;
@@ -52,6 +54,8 @@ export interface Reply {
   added?: { title: string; minutes: number; due: string | null };
   /** Text you might copy (form answers) */
   draft?: string;
+  /** What to do with the minutes you have, in order */
+  steps?: SpareStep[];
 }
 
 export interface CoachContext {
@@ -59,6 +63,8 @@ export interface CoachContext {
   plan: PlanContext;
   goal: string | null;
   history: Turn[];
+  /** What the learning and job loops know (due cards, weak spots, jobs) */
+  spare?: Pick<SpareInput, 'dueCards' | 'weakSpots' | 'jobs'>;
   addTask: (t: { title: string; duration: number; priority: 'P1' | 'P2' | 'P3'; deadline?: string; category: 'learning' | 'career' | 'life'; tags?: string[] }) => void;
 }
 
@@ -87,10 +93,12 @@ const RULES: [Intent, RegExp][] = [
 ];
 
 export function routeWithRules(text: string): Routed {
-  const intent = RULES.find(([, re]) => re.test(text))?.[0] ?? 'chat';
+  const ruled = RULES.find(([, re]) => re.test(text))?.[0];
+  // "I have 10 minutes" wins over a general "what should I do", not over a specific ask
+  const intent: Intent = parseSpareRequest(text) && (!ruled || ruled === 'plan' || ruled === 'add') ? 'spare' : ruled ?? 'chat';
   // Topic: the words after "on/about/for/in/of" or after the trigger
   const m = text.match(/\b(?:on|about|for|regarding|of)\s+(.+?)(?:\s+(?:in|near|for me|please|today|tonight|tomorrow)\b|[?.!]|$)/i);
-  const topic = m?.[1]?.trim() || null;
+  const topic = m?.[1]?.replace(/\s+(?:under|less than|up to)\s+\d+\s*min(?:ute)?s?$/i, '').trim() || null;
   const jobs = text.match(/(?:find|search|look for|show)?\s*(?:me\s+)?(.+?)\s+(?:jobs?|roles?)(?:\s+in\s+(.+?))?[?.!]?$/i);
   return {
     intent,
@@ -120,7 +128,8 @@ intents:
 - news: latest news or updates on a topic
 - podcast: something to listen to
 - quiz: they want to be quizzed / tested
-- plan: what to do now/today, their progress, what they get wrong
+- spare: they say how much time they have or where they are (commute, waiting, getting dressed) and want the best use of it, without asking for one specific thing
+- plan: what to do today, their progress, what they get wrong
 - add: add a task or reminder to their week
 - jobs: find jobs (role + optional place)
 - cv: create / tailor / improve their CV or resume
@@ -133,8 +142,9 @@ Return ONLY JSON:
       { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 1500, timeoutMs: 12000 }
     );
     const j = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw);
-    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'plan', 'add', 'jobs', 'cv', 'form', 'apply', 'chat'];
+    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'plan', 'spare', 'add', 'jobs', 'cv', 'form', 'apply', 'chat'];
     if (!intents.includes(j.intent)) return routeWithRules(text);
+    if ((j.intent === 'plan' || j.intent === 'chat') && parseSpareRequest(text)) j.intent = 'spare';
     const minutes = Number(j.task?.minutes);
     return {
       intent: j.intent,
@@ -187,10 +197,16 @@ async function news(topic: string, ctx: CoachContext): Promise<Reply> {
   };
 }
 
-async function podcast(topic: string): Promise<Reply> {
-  const picks = await findPodcasts(topic, 3);
+async function podcast(topic: string, text = ''): Promise<Reply> {
+  // "under 15 minutes": put an episode that fits first
+  const max = Number(text.match(/\b(?:under|less than|shorter than|max(?:imum)?|up to)\s+(\d{1,3})\s*min/i)?.[1]) || null;
+  const found = await findPodcasts(topic, max ? 6 : 3);
+  const fits = (p: PodcastPick) => !!max && !!p.episode && p.episode.minutes > 0 && p.episode.minutes <= max;
+  const picks = max ? [...found.filter(fits), ...found.filter((p) => !fits(p)).sort((a, b) => (a.episode?.minutes || 999) - (b.episode?.minutes || 999))].slice(0, 3) : found;
   if (!picks.length) return { intent: 'podcast', topic, text: `I couldn't find a podcast on ${topic}. Try a broader topic?` };
   const top = picks[0];
+  if (max && !fits(top) && top.episode)
+    return { intent: 'podcast', topic, podcasts: picks, text: `None of the latest episodes on ${topic} are under ${max} minutes. The closest is ${top.show}, "${top.episode.title}", ${top.episode.minutes} minutes. You could listen to the first part and finish it later.` };
   const ep = top.episode;
   return {
     intent: 'podcast',
@@ -303,7 +319,19 @@ export async function respond(text: string, ctx: CoachContext): Promise<Reply> {
       case 'news':
         return topic ? await news(topic, ctx) : { intent: 'news', topic: null, text: 'News on what? For example: latest news on project management.' };
       case 'podcast':
-        return await podcast(topic ?? ctx.goal ?? 'career change');
+        return await podcast(topic ?? ctx.goal ?? 'career change', text);
+      case 'spare': {
+        const req = parseSpareRequest(text) ?? { minutes: 10, mode: 'audio' as const };
+        const p = planSpareTime({ ...req, dueCards: 0, weakSpots: [], jobs: [], ...ctx.spare, goal: ctx.goal });
+        const first = p.steps[0];
+        return {
+          intent: 'spare',
+          topic: null,
+          steps: p.steps,
+          text: speakPlan(p),
+          open: first ? { label: `Start: ${first.title}`, href: first.href } : undefined,
+        };
+      }
       case 'quiz': {
         const t = topic ?? ctx.goal;
         if (!t) return { intent: 'quiz', topic: null, text: 'Happy to. Which topic should I quiz you on?' };

@@ -201,7 +201,7 @@ export default function Activity() {
 
   return (
     <DashboardLayout>
-      <PageHeader eyebrow="History" title="What you’ve done" description="Every quiz, review, replan, application and conversation, day by day. Entries can’t be edited or deleted." />
+      <PageHeader title="What you’ve done" description="Every quiz, review, replan, application and conversation, day by day. Entries can’t be edited or deleted." />
 
       {receipts.length > 0 && <ActivityCalendar perDay={perDay} onPick={jumpTo} />}
       {jumpNote && <p className="-mt-3 mb-5 text-[12.5px] text-muted-foreground">{jumpNote}</p>}

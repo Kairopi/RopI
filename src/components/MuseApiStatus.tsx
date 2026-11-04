@@ -51,6 +51,9 @@ export function MuseApiStatus() {
         ? { dot: 'bg-success', text: 'Meta Muse connected' }
         : { dot: 'bg-destructive', text: 'Meta Muse unreachable' };
 
+  // Only speak up when something is wrong: a green "connected" pill is noise
+  if (status.loading || (status.configured && status.connected)) return null;
+
   return (
     <div className="inline-flex flex-col items-start gap-2">
       <button

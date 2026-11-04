@@ -79,6 +79,8 @@ import {
   SpeakerSlash,
   X as PX,
   XCircle as PXCircle,
+  Headphones as PHeadphones,
+  DeviceMobile,
 } from '@phosphor-icons/react';
 
 export type { IconProps, IconWeight };
@@ -118,6 +120,8 @@ export const Kanban = make(PKanban, 'duotone', 'Kanban');
 export const MapPin = make(PMapPin, 'duotone', 'MapPin');
 export const MessageSquare = make(ChatText, 'duotone', 'MessageSquare');
 export const Mic = make(Microphone, 'duotone', 'Mic');
+export const Headphones = make(PHeadphones, 'duotone', 'Headphones');
+export const Phone = make(DeviceMobile, 'duotone', 'Phone');
 export const MicOff = make(MicrophoneSlash, 'duotone', 'MicOff');
 export const Smile = make(Smiley, 'duotone', 'Smile');
 export const Target = make(PTarget, 'duotone', 'Target');
