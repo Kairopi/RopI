@@ -57,7 +57,9 @@ export async function generateFlashcards(
   topic: string,
   count: number = 10,
   difficulty: 'easy' | 'medium' | 'hard' = 'medium',
-  documentTitle?: string
+  documentTitle?: string,
+  /** Which part of the topic these cards cover (so two parallel calls don't overlap) */
+  angle?: string
 ): Promise<Flashcard[]> {
   if (!isMuseConfigured()) {
     throw new Error('Meta Muse API not configured. Please set VITE_MUSE_API_KEY in .env')
@@ -72,7 +74,7 @@ export async function generateFlashcards(
   const prompt = `
 You are an expert flashcard creator using evidence-based learning science principles.
 
-Create ${count} flashcards from the following educational content.
+Create ${count} flashcards from the following educational content.${angle ? `\nThese cards cover only: ${angle}.` : ''}
 
 TOPIC: ${topic}
 DIFFICULTY: ${difficulty} - ${difficultyGuide[difficulty]}
@@ -83,7 +85,7 @@ ${documentText.substring(0, 15000)}${documentText.length > 15000 ? '\n...(trunca
 
 FLASHCARD CREATION GUIDELINES:
 1. **Front (Question)**: Clear, specific question that tests ONE concept
-2. **Back (Answer)**: Concise but complete answer (2-4 sentences max)
+2. **Back (Answer)**: The answer in 1-2 plain sentences, then "For example: " and a one-sentence real situation that shows it
 3. **Hint (Optional)**: Small clue without giving away the answer
 4. **Concept**: The key concept being tested (e.g., "Lambda cold starts", "SOLID principles")
 
@@ -119,7 +121,7 @@ Make flashcards interview-ready and career-relevant.
   try {
     console.log(`🎴 Generating ${count} flashcards for topic: ${topic}`)
     
-    const response = await callMuseWonder(prompt, 0.7)
+    const response = await callMuseWonder(prompt, 0.7, { reasoningEffort: 'minimal', maxTokens: 4000 })
     
     // Extract JSON from response
     const jsonMatch = response.match(/\[[\s\S]*\]/);

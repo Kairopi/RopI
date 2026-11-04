@@ -24,7 +24,7 @@ export default function VoiceQuizPage() {
   const topic = params.get('topic');
   const focus = params.get('focus');
   const source = params.get('source');
-  const { quiz, loading, error, retry } = useQuiz(quizParam, topic, focus, source);
+  const { quiz, loading, error, retry } = useQuiz(quizParam, topic, focus, source, { progressive: false });
   const builtIn = BUILT_IN_QUIZ_LIST.some((q) => q.id === quizParam);
 
   const handleComplete = ({ selected, voiceInputs, timeElapsed }: VoiceQuizCompletion) => {
@@ -71,7 +71,7 @@ export default function VoiceQuizPage() {
           <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
           <h2 className="text-[17px] font-semibold">Writing your voice quiz</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            {source ? 'From your document, with every answer checked against a quote.' : `Meta Muse is writing questions${focus ? ` on ${focus}` : topic ? ` on ${topic}` : ''}.`}
+            {source ? 'From your document, with every answer checked against a quote.' : `Writing questions${focus ? ` on ${focus}` : topic ? ` on ${topic}` : ''}.`}
           </p>
         </div>
       ) : error || !quiz ? (

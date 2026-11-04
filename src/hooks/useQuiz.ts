@@ -9,10 +9,11 @@
 import { useEffect, useState } from 'react';
 import type { Quiz } from '@/lib/learning/quiz-generator';
 import { BUILT_IN_QUIZZES } from '@/lib/mock/quizzes';
-import { generateTopicQuiz } from '@/lib/learning/topic-quiz';
+import { generateTopicQuiz, topicQuizJob } from '@/lib/learning/topic-quiz';
 import { generateSourceQuiz, type SourceQuizStats } from '@/lib/learning/source-quiz';
 
-export function useQuiz(quizId: string | undefined, topic: string | null, focus: string | null, source: string | null = null) {
+export function useQuiz(quizId: string | undefined, topic: string | null, focus: string | null, source: string | null = null, opts: { progressive?: boolean } = {}) {
+  const progressive = opts.progressive ?? true;
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [stats, setStats] = useState<SourceQuizStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,26 @@ export function useQuiz(quizId: string | undefined, topic: string | null, focus:
       return;
     }
 
+    // A topic quiz is handed over as soon as its first questions are written; the rest stream in
+    if (quizId === 'new' && topic && !source) {
+      const j = topicQuizJob(topic, focus ?? undefined);
+      const sync = () => {
+        if (cancelled) return;
+        if (j.quiz && j.quiz.questions.length >= 2 && (progressive || j.done)) {
+          setQuiz(j.done ? { ...j.quiz, expectedCount: undefined } : j.quiz);
+          setLoading(false);
+        } else if (j.done) {
+          setError(j.error ?? 'Quiz generation failed');
+          setLoading(false);
+        }
+      };
+      const off = j.subscribe(sync);
+      sync();
+      return () => {
+        cancelled = true;
+        off();
+      };
+    }
     const job =
       quizId === 'new' && source
         ? generateSourceQuiz(source, focus ?? undefined).then((q) => {
@@ -55,7 +76,7 @@ export function useQuiz(quizId: string | undefined, topic: string | null, focus:
 
     setError('This quiz does not exist.');
     setLoading(false);
-  }, [quizId, topic, focus, source, attempt]);
+  }, [quizId, topic, focus, source, attempt, progressive]);
 
   return { quiz, stats, error, loading, retry: () => setAttempt((a) => a + 1) };
 }

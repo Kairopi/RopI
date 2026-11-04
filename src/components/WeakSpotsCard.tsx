@@ -96,7 +96,7 @@ export function WeakSpotsCard({ weakSpots, conceptStats = [], onPractice, onPrac
 
       {onPractice && (
         <p className="text-xs text-muted-foreground mt-4">
-          Practice writes a new 6-question quiz on that concept with Meta Muse.
+          Practice writes a new 6-question quiz on just that concept.
         </p>
       )}
     </Card>

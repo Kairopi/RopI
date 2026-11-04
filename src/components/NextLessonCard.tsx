@@ -51,7 +51,7 @@ export function NextLessonCard({
           <div>
             <h3 className="text-[17px] font-semibold">Writing your next lesson</h3>
             <p className="text-sm text-muted-foreground">
-              Meta Muse is building it from the questions you missed (about 10 seconds)
+              Ropi is writing it from the questions you missed (about 10 seconds)
             </p>
           </div>
         </div>

@@ -269,7 +269,7 @@ export default function DailyReviews() {
         <div className="mx-auto flex max-w-md flex-col items-center py-20 text-center">
           <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
           <h2 className="text-[17px] font-semibold">Loading your review cards</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">Asking the FSRS scheduler what is due</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">Finding what’s due</p>
         </div>
       </DashboardLayout>
     );
@@ -369,7 +369,7 @@ export default function DailyReviews() {
                   {memory !== null && (
                     <span
                       className="num rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground"
-                      title="FSRS estimate of the chance you remember this card right now"
+                      title="How likely you are to remember this right now"
                     >
                       {memory}% recall
                     </span>
@@ -423,7 +423,7 @@ export default function DailyReviews() {
                           <span className="mt-2.5 flex w-full items-center gap-2">
                             <span className={`h-1 w-6 rounded-full ${r.bar}`} />
                             {intervals && (
-                              <span className="num ml-auto text-[11px] text-muted-foreground" title="When FSRS will show this card again">
+                              <span className="num ml-auto text-[11px] text-muted-foreground" title="When this card comes back">
                                 back in {intervals[r.key]}
                               </span>
                             )}
@@ -448,7 +448,7 @@ export default function DailyReviews() {
             <Clock className="h-3.5 w-3.5" />
             <span className="num">{Math.round((Date.now() - currentCard.createdAt.getTime()) / (1000 * 60 * 60 * 24))}</span> days old
           </span>
-          <span>FSRS sets the next review from your rating</span>
+          <span>Your rating decides when it comes back</span>
         </div>
       </div>
     </DashboardLayout>

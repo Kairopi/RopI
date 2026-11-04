@@ -140,7 +140,7 @@ export default function Jobs() {
             ) : (
               <>
                 <span className="font-medium">Add your resume once.</span>
-                <span className="text-muted-foreground"> Ropi scores every job against it and tailors it with Meta Muse.</span>
+                <span className="text-muted-foreground"> Ropi scores every job against it and can tailor it for each one.</span>
               </>
             )}
           </p>
@@ -430,7 +430,7 @@ function JobRow({
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-accent/50 px-4 py-3">
               <p className="text-[13px]">
                 <span className="font-medium">Tailor your resume for {job.company}.</span>{' '}
-                <span className="text-muted-foreground">Meta Muse rewrites it around this job’s terms, using only what’s already true in your resume. You check it before using it.</span>
+                <span className="text-muted-foreground">Ropi rewrites it around this job’s terms, using only what’s already true in your resume. You check it before using it.</span>
               </p>
               <Button size="sm" disabled={busy === 'tailor'} onClick={doTailor}>
                 {busy === 'tailor' && <Loader2 className="animate-spin" />}

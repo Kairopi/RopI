@@ -197,7 +197,7 @@ export default function StudyGuide() {
                 <button onClick={() => navigate('/reviews')} className="font-medium text-primary hover:underline">
                   Daily reviews
                 </button>
-                , where FSRS brings each card back right before you'd forget it.
+                , where each card comes back right before you'd forget it.
               </p>
               <FlashcardViewer flashcards={flashcards} onComplete={handleFlashcardsComplete} />
             </>
@@ -216,7 +216,7 @@ export default function StudyGuide() {
             </span>
             <h3 className="text-[17px] font-semibold">Test yourself on {guide.topic || guide.title}</h3>
             <p className="mt-1 max-w-sm text-[13.5px] text-muted-foreground">
-              Meta Muse writes a fresh 6-question quiz. Anything you miss becomes a review card and updates your weak spots.
+              Ropi writes a fresh 6-question quiz. Anything you miss becomes a review card and updates your weak spots.
             </p>
             <Button className="mt-5" onClick={() => navigate(`/quiz/new?topic=${encodeURIComponent(guide.topic || guide.title)}`)}>
               <FileQuestion />

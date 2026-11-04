@@ -132,6 +132,10 @@ export function routeWithRules(text: string): Routed {
 
 async function route(text: string, ctx: CoachContext): Promise<Routed> {
   if (!isMuseConfigured()) return routeWithRules(text);
+  // Requests the rules recognise for certain ("what do I have today", "I have 10 minutes",
+  // "apply for me") skip the extra model call: about 2 seconds faster
+  const sure = routeWithRules(text);
+  if (sure.intent === 'day' || sure.intent === 'week' || sure.intent === 'spare' || sure.intent === 'apply') return sure;
   const today = new Date();
   const recent = ctx.history.slice(-4).map((t) => `${t.role === 'you' ? 'User' : 'Ropi'}: ${t.text.slice(0, 200)}`).join('\n');
   try {
@@ -205,7 +209,7 @@ async function explain(text: string, topic: string | null, ctx: CoachContext): P
 ${block ? `Their own notes and review cards on this (prefer these, and say "from your notes" when you use them):\n${block}\n` : ''}
 Explain it simply, like a friendly tutor talking to someone getting dressed or on a train: one plain-English idea, one everyday example, then one short question to check they've got it. At most 90 words. ${SPOKEN}
 Return ONLY JSON: {"answer": "..."}`,
-    { model: MUSE_MODELS.fast, reasoningEffort: 'low', json: true, maxTokens: 3000, timeoutMs: 30000 }
+    { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 3000, timeoutMs: 30000 }
   );
   const answer = String(JSON.parse(out.match(/\{[\s\S]*\}/)?.[0] ?? out).answer ?? '').trim();
   return {
@@ -319,7 +323,7 @@ Question: "${(r.question ?? text).slice(0, 500)}"
 ${job ? `Job: ${job.job_title} at ${job.company}. ${String(job.description ?? '').slice(0, 1500)}` : ''}
 ${resume ? `Their resume (use only facts from it, never invent):\n${resume}` : 'No resume on file: keep it general and mark [add your example] where a real example belongs.'}
 Under 150 words. Return ONLY JSON: {"draft": "...", "spoken": "one sentence telling them what you wrote and what to check"}`,
-    { model: MUSE_MODELS.fast, reasoningEffort: 'low', json: true, maxTokens: 3000, timeoutMs: 30000 }
+    { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 3000, timeoutMs: 30000 }
   );
   const j = JSON.parse(out.match(/\{[\s\S]*\}/)?.[0] ?? out);
   return { intent: 'form', topic: job?.job_title ?? null, draft: String(j.draft ?? '').trim(), text: String(j.spoken ?? 'Here is a draft. Check it reads like you before you paste it.') };
@@ -356,7 +360,7 @@ Write the note as 2 to 5 short lines a learner would want: the idea in plain wor
 Pick the folder: an existing folder name if it fits, otherwise a short new one (2-4 words). Pick a subtopic if the note is about one specific concept (reuse an existing one when it matches).
 If they want to practise or review it at a time, set practice.when to "today", "tonight", "tomorrow" or a YYYY-MM-DD date, and minutes (default 15).
 Return ONLY JSON: {"title": "...", "body": "...", "folder": "...", "subtopic": "... or null", "practice": {"when": "...", "minutes": 15} or null}`,
-      { model: MUSE_MODELS.fast, reasoningEffort: 'low', json: true, maxTokens: 3000, timeoutMs: 30000 }
+      { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 3000, timeoutMs: 30000 }
     );
     j = JSON.parse(out.match(/\{[\s\S]*\}/)?.[0] ?? out);
   } catch {
@@ -398,7 +402,7 @@ Recent conversation:\n${ctx.history.slice(-6).map((t) => `${t.role}: ${t.text.sl
 They said: "${text.slice(0, 500)}"
 Reply in at most 60 words. Be specific and practical; end with one small next step they can do in 10 minutes. ${SPOKEN}
 Return ONLY JSON: {"answer": "..."}`,
-    { model: MUSE_MODELS.fast, reasoningEffort: 'low', json: true, maxTokens: 2000, timeoutMs: 25000 }
+    { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 2000, timeoutMs: 25000 }
   );
   return { intent: 'chat', topic: null, text: String(JSON.parse(out.match(/\{[\s\S]*\}/)?.[0] ?? out).answer ?? '').trim() || "I'm here. What would help most right now?" };
 }

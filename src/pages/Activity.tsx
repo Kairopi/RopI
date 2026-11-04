@@ -312,7 +312,7 @@ export default function Activity() {
                             )}
                             <p className="mt-3 text-[11px] text-muted-foreground">
                               {new Date(r.occurred_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'medium' })} · by{' '}
-                              {r.actor === 'muse' ? 'Meta Muse + Ropi' : r.actor === 'ropi' ? 'Ropi' : 'you'} · entry {r.id.slice(0, 8)}
+                              {r.actor === 'muse' ? 'Ropi' : r.actor === 'ropi' ? 'Ropi' : 'you'} · entry {r.id.slice(0, 8)}
                             </p>
                           </div>
                         )}

@@ -216,7 +216,7 @@ export function AskRopi({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   )}
 
                   <p className="mt-4 text-[11px] text-muted-foreground">
-                    {answer.answeredBy === 'muse' ? 'Written by Meta Muse from' : 'Listed directly from'} {answer.retrieved.length} piece
+                    {answer.answeredBy === 'muse' ? 'Answered from' : 'Listed from'} {answer.retrieved.length} piece
                     {answer.retrieved.length === 1 ? '' : 's'} of your own data · {answer.cited.length} cited · {(answer.ms / 1000).toFixed(1)}s
                   </p>
                 </motion.div>

@@ -78,8 +78,8 @@ function QuizStatus({
           <h2 className="text-[17px] font-semibold mb-1">Writing your quiz</h2>
           <p className="text-sm text-muted-foreground">
             {fromDocument
-              ? 'Meta Muse is writing questions from your document, then Ropi checks every quote against it. About 15-25 seconds.'
-              : <>Meta Muse is creating questions{topic ? ` on ${topic}` : ''}. This takes about 10-20 seconds.</>}
+              ? 'Writing questions from your document, then checking every answer against a quote from it. About 15 seconds.'
+              : <>Writing questions{topic ? ` on ${topic}` : ''}. The first ones are usually ready in about 5 seconds.</>}
           </p>
         </>
       ) : (
@@ -115,9 +115,11 @@ function QuizRunner({
   const [selectedAnswers, setSelectedAnswers] = useState<Map<string, number>>(new Map());
   const [timeElapsed, setTimeElapsed] = useState(0);
   
-  const currentQuestion = quiz.questions[currentQuestionIndex];
-  const selectedAnswer = selectedAnswers.get(currentQuestion.id);
-  const isLastQuestion = currentQuestionIndex === quiz.questions.length - 1;
+  // A generated quiz arrives in parts: start on the first questions while Muse writes the rest
+  const total = Math.max(quiz.questions.length, quiz.expectedCount ?? 0);
+  const currentQuestion = quiz.questions[currentQuestionIndex] as (typeof quiz.questions)[number] | undefined;
+  const selectedAnswer = currentQuestion ? selectedAnswers.get(currentQuestion.id) : undefined;
+  const isLastQuestion = currentQuestionIndex === total - 1;
   
   // Timer
   useEffect(() => {
@@ -135,13 +137,14 @@ function QuizRunner({
   };
   
   const handleAnswerSelect = (answerIndex: number) => {
+    if (!currentQuestion) return;
     const newAnswers = new Map(selectedAnswers);
     newAnswers.set(currentQuestion.id, answerIndex);
     setSelectedAnswers(newAnswers);
   };
   
   const handleNext = () => {
-    if (currentQuestionIndex < quiz.questions.length - 1) {
+    if (currentQuestionIndex < total - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     }
   };
@@ -158,7 +161,7 @@ function QuizRunner({
     const result = buildQuizResult(quiz, quizId, selectedAnswers, timeElapsed, 'text', retakePath);
     navigate(`/quiz/results/${quizId}`, { state: result });
   };
-    const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
+    const progress = ((currentQuestionIndex + 1) / total) * 100;
   const answeredCount = selectedAnswers.size;
 
   // Keyboard: A-D or 1-4 picks an answer, Enter / arrow keys move
@@ -167,7 +170,7 @@ function QuizRunner({
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const k = e.key.toLowerCase();
       const pick = 'abcd'.indexOf(k) >= 0 ? 'abcd'.indexOf(k) : '1234'.indexOf(k);
-      if (pick >= 0 && pick < currentQuestion.options.length) handleAnswerSelect(pick);
+      if (currentQuestion && pick >= 0 && pick < currentQuestion.options.length) handleAnswerSelect(pick);
       else if ((k === 'enter' || k === 'arrowright') && selectedAnswer !== undefined && !isLastQuestion) handleNext();
       else if (k === 'arrowleft') handlePrevious();
     };
@@ -175,7 +178,7 @@ function QuizRunner({
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const allAnswered = answeredCount === quiz.questions.length;
+  const allAnswered = quiz.questions.length === total && answeredCount === total;
 
   return (
     <DashboardLayout>
@@ -186,7 +189,7 @@ function QuizRunner({
             <div className="eyebrow mb-2 truncate">{quiz.title}</div>
             <h1 className="text-[26px] font-semibold leading-tight">
               Question <span className="num">{currentQuestionIndex + 1}</span>
-              <span className="text-muted-foreground"> of {quiz.questions.length}</span>
+              <span className="text-muted-foreground"> of {total}</span>
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -212,13 +215,13 @@ function QuizRunner({
         )}
 
         {/* Segmented progress: one segment per question, click to jump */}
-        <div className="mb-6 flex gap-1" aria-label={`${answeredCount} of ${quiz.questions.length} answered`}>
-          {quiz.questions.map((q, i) => {
-            const answered = selectedAnswers.has(q.id);
+        <div className="mb-6 flex gap-1" aria-label={`${answeredCount} of ${total} answered`}>
+          {Array.from({ length: total }, (_, i) => quiz.questions[i]).map((q, i) => {
+            const answered = !!q && selectedAnswers.has(q.id);
             const current = i === currentQuestionIndex;
             return (
               <button
-                key={q.id}
+                key={q?.id ?? `pending-${i}`}
                 tabIndex={-1}
                 aria-label={`Go to question ${i + 1}`}
                 onClick={() => setCurrentQuestionIndex(i)}
@@ -235,6 +238,12 @@ function QuizRunner({
         </div>
 
         <AnimatePresence mode="wait">
+          {!currentQuestion ? (
+            <Card key="writing" className="flex items-center gap-3 p-6 text-[14px] text-muted-foreground sm:p-8">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              Writing question {currentQuestionIndex + 1}. It’ll be here in a moment.
+            </Card>
+          ) : (
           <motion.div
             key={currentQuestion.id}
             initial={{ opacity: 0, y: 8 }}
@@ -276,6 +285,7 @@ function QuizRunner({
               </div>
             </Card>
           </motion.div>
+          )}
         </AnimatePresence>
 
         {/* Navigation */}
@@ -304,7 +314,7 @@ function QuizRunner({
 
         {isLastQuestion && !allAnswered && (
           <p className="mt-4 text-center text-[12.5px] text-warning-ink">
-            {quiz.questions.length - answeredCount} question{quiz.questions.length - answeredCount === 1 ? '' : 's'} left
+            {total - answeredCount} question{total - answeredCount === 1 ? '' : 's'} left
             unanswered. Tap a segment above to jump back.
           </p>
         )}

@@ -32,6 +32,7 @@ import { useLoop } from '@/hooks/useLoop';
 import { BUILT_IN_QUIZ_LIST } from '@/lib/mock/quizzes';
 import { cn } from '@/lib/utils';
 import { loadFolders } from '@/lib/library/topics';
+import { prefetchTopicQuiz } from '@/lib/learning/topic-quiz';
 
 type Level = 'beginner' | 'intermediate' | 'advanced';
 // The generators use easy/medium/hard
@@ -59,6 +60,13 @@ export default function Learning() {
     localStorage.setItem(MODE_KEY, mode);
   }, [mode]);
   const [topic, setTopic] = useState('');
+  // Start writing the quiz while you're still typing: by the time you press Quiz me it's often ready
+  useEffect(() => {
+    const t = topic.trim();
+    if (t.length < 4 || BUILT_IN_QUIZ_LIST.some((q) => q.topic.toLowerCase() === t.toLowerCase())) return;
+    const timer = setTimeout(() => prefetchTopicQuiz(t), 900);
+    return () => clearTimeout(timer);
+  }, [topic]);
   const [level, setLevel] = useState<Level>('intermediate');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -151,7 +159,7 @@ export default function Learning() {
         })),
       });
     } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Meta Muse could not write the guide. Try again in a moment.');
+      setGenerationError(error instanceof Error ? error.message : 'Ropi couldn’t write the guide just now. Try again in a moment.');
     } finally {
       setIsGenerating(false);
     }
@@ -448,7 +456,7 @@ export default function Learning() {
             </div>
           ) : guides.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
-              Ask for a <span className="font-medium text-foreground">Study guide + cards</span> above. Meta Muse writes a summary and cards, you keep the
+              Ask for a <span className="font-medium text-foreground">Study guide + cards</span> above. Ropi writes a short summary with real examples and cards; you keep the
               ones that are right, and the guide is saved here.
             </p>
           ) : (
@@ -528,7 +536,7 @@ export default function Learning() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-[13.5px] text-muted-foreground">Meta Muse wrote these cards. Untick any that are wrong or that you already know.</p>
+              <p className="text-[13.5px] text-muted-foreground">Untick any card that’s wrong or that you already know.</p>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
@@ -574,7 +582,7 @@ export default function Learning() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t p-5">
-              <p className="text-[12.5px] text-muted-foreground">Kept cards join your daily reviews. FSRS decides when each one comes back.</p>
+              <p className="text-[12.5px] text-muted-foreground">Kept cards join your daily reviews and come back right before you’d forget them.</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setPreview(null)} disabled={isSaving}>
                   Cancel

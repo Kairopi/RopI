@@ -16,6 +16,7 @@
 
 import { listenWithMuse, museListenAvailable, stopMuseListening } from './muse-listen';
 import { kokoroState, loadKokoro, speakKokoro, stopKokoro } from './kokoro';
+import { waitAfter } from './endpoint';
 
 /** Voice settings (Talk > Voice): natural = the on-device Kokoro voice */
 export function voicePrefs(): { voice?: string; rate?: number; natural?: boolean; naturalVoice?: string; engine?: 'muse' | 'browser' } {
@@ -47,7 +48,7 @@ export class SpeechError extends Error {
         aborted: 'Listening stopped.',
         'start-failed': 'The microphone is busy. Try again in a moment.',
         'not-supported': 'This browser can’t listen. Try Chrome, Edge, Safari or Firefox.',
-        'not-allowed-key': 'Meta Muse turned the voice connection down (check the API key).',
+        'not-allowed-key': 'The voice service turned the connection down (check the API key).',
         'language-not-supported': 'Voice recognition doesn’t support this language here.',
       }[code] ?? `Speech recognition error (${code}).`
     );
@@ -298,7 +299,7 @@ export class SpeechManager {
    * An empty final result (Edge does this on a cough or background noise) counts
    * as "didn't hear anything", instead of leaving the page stuck on "Listening".
    */
-  async listenDetailed(options: { onInterim?: (text: string) => void; onLevel?: (level: number) => void; keywords?: string[]; prefer?: 'muse' | 'browser' } = {}): Promise<Heard> {
+  async listenDetailed(options: { onInterim?: (text: string) => void; onLevel?: (level: number) => void; keywords?: string[]; prefer?: 'muse' | 'browser'; quick?: boolean } = {}): Promise<Heard> {
     const engine = options.prefer === 'browser' && this.isSupported.stt ? 'browser' : options.prefer === 'muse' && museListenAvailable() ? 'muse' : this.getEngine();
     if (engine === 'muse') {
       try {
@@ -316,7 +317,14 @@ export class SpeechManager {
     return this.listenBrowser(options);
   }
 
-  private async listenBrowser(options: { onInterim?: (text: string) => void } = {}): Promise<Heard> {
+  /**
+   * The browser's recogniser, kept open across pauses (continuous) with Ropi
+   * deciding when you've finished: Chrome on its own stops after about a second
+   * of silence, which cut people off mid-thought. A pause after "and..." or a
+   * single word waits much longer than a pause after a finished question
+   * (see endpoint.ts). Tapping stop sends what was heard.
+   */
+  private async listenBrowser(options: { onInterim?: (text: string) => void; quick?: boolean } = {}): Promise<Heard> {
     if (!this.isSupported.stt) {
       throw new Error('Speech recognition not supported in this browser');
     }
@@ -327,46 +335,88 @@ export class SpeechManager {
     }
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new Recognition();
-    recognition.continuous = false;
+    // Short answers (a quiz letter) keep the browser's own quick end; conversation stays open
+    recognition.continuous = !options.quick;
     recognition.lang = 'en-US';
-    recognition.interimResults = !!options.onInterim;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 3;
     this.recognition = recognition;
 
     return new Promise((resolve, reject) => {
-      // Settle exactly once: result, error, or "ended with nothing heard"
       let settled = false;
-      let lastInterim = '';
+      let finals: string[] = [];
+      let alternatives: string[] = [];
+      let confidence: number | null = null;
+      let interim = '';
+      let lastActivity = Date.now();
+      let heardAny = false;
+      const startedAt = Date.now();
+      const text = () => [...finals, interim].join(' ').replace(/\s+/g, ' ').trim();
       const finish = (fn: () => void) => {
-        if (!settled) {
-          settled = true;
-          fn();
-        }
+        if (settled) return;
+        settled = true;
+        clearInterval(tick);
+        fn();
       };
-
-      recognition.onresult = (event: any) => {
-        const result = event.results[event.results.length - 1];
-        if (!result.isFinal) {
-          lastInterim = Array.from(event.results as ArrayLike<any>).map((r: any) => r[0].transcript).join(' ').trim();
-          if (lastInterim) options.onInterim?.(lastInterim);
-          return;
-        }
-        const alternatives = Array.from(result as ArrayLike<any>).map((a: any) => String(a.transcript).trim()).filter(Boolean);
-        if (!alternatives.length) return; // empty: let onend decide
-        const confidence = Number(result[0].confidence) || 0;
-        finish(() => resolve({ transcript: alternatives[0], alternatives, confidence: confidence > 0 ? confidence : null }));
-      };
-
-      recognition.onerror = (event: any) => {
-        finish(() => reject(new SpeechError(event.error)));
-      };
-
-      // Chrome ends recognition after a few seconds of silence without firing an error.
-      // If it ended mid-word with only an interim guess, use that rather than losing it.
-      recognition.onend = () => {
-        if (lastInterim) finish(() => resolve({ transcript: lastInterim, alternatives: [lastInterim], confidence: null }));
+      const done = () => {
+        const t = text();
+        if (t) finish(() => resolve({ transcript: t, alternatives: alternatives.length && finals.length === 1 && !interim ? alternatives : [t], confidence }));
         else finish(() => reject(new SpeechError('no-speech')));
       };
+
+      // Our own end-of-turn: silence long enough for what was said
+      const tick = setInterval(() => {
+        const t = text();
+        if (t && Date.now() - lastActivity > waitAfter(t)) {
+          try {
+            recognition.stop();
+          } catch {
+            // already stopping
+          }
+          done();
+        } else if ((!heardAny && Date.now() - startedAt > 8000) || (!t && Date.now() - lastActivity > 9000) || Date.now() - startedAt > 45000) {
+          try {
+            recognition.stop();
+          } catch {
+            // already stopping
+          }
+          done();
+        }
+      }, 150);
+
+      recognition.onresult = (event: any) => {
+        heardAny = true;
+        lastActivity = Date.now();
+        const nextFinals: string[] = [];
+        let nextInterim = '';
+        for (let i = 0; i < event.results.length; i++) {
+          const r = event.results[i];
+          const t = String(r[0]?.transcript ?? '').trim();
+          if (!t) continue;
+          if (r.isFinal) {
+            nextFinals.push(t);
+            if (i === event.results.length - 1) {
+              alternatives = Array.from(r as ArrayLike<any>).map((a: any) => String(a.transcript).trim()).filter(Boolean);
+              confidence = Number(r[0].confidence) > 0 ? Number(r[0].confidence) : null;
+            }
+          } else nextInterim += (nextInterim ? ' ' : '') + t;
+        }
+        finals = nextFinals;
+        interim = nextInterim;
+        if (text()) options.onInterim?.(text());
+        if (options.quick && finals.length) done();
+      };
+      recognition.onspeechstart = () => {
+        heardAny = true;
+        lastActivity = Date.now();
+      };
+      recognition.onerror = (event: any) => {
+        if (event.error === 'no-speech' && text()) return done();
+        if (event.error === 'aborted' && settled) return;
+        finish(() => reject(new SpeechError(event.error)));
+      };
+      // Ended (by us, by stopListening(), or by the browser): send whatever was said
+      recognition.onend = () => done();
 
       try {
         recognition.start();

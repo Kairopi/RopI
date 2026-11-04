@@ -44,12 +44,12 @@ export function MuseApiStatus() {
   }, []);
 
   const tone = status.loading
-    ? { dot: 'bg-muted-foreground/40', text: 'Checking Meta Muse' }
+    ? { dot: 'bg-muted-foreground/40', text: 'Checking Ropi’s AI' }
     : !status.configured
-      ? { dot: 'bg-warning', text: 'Meta Muse not configured' }
+      ? { dot: 'bg-warning', text: 'Ropi’s AI isn’t set up' }
       : status.connected
-        ? { dot: 'bg-success', text: 'Meta Muse connected' }
-        : { dot: 'bg-destructive', text: 'Meta Muse unreachable' };
+        ? { dot: 'bg-success', text: 'Connected' }
+        : { dot: 'bg-destructive', text: 'Ropi can’t reach its AI right now' };
 
   // Only speak up when something is wrong: a green "connected" pill is noise
   if (status.loading || (status.configured && status.connected)) return null;
@@ -59,7 +59,7 @@ export function MuseApiStatus() {
       <button
         onClick={checkStatus}
         disabled={status.loading}
-        title={status.error ?? 'Check the Meta Muse connection again'}
+        title={status.error ?? 'Check the connection again'}
         className="group inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:border-primary/40"
       >
         <span className="relative flex h-2 w-2">

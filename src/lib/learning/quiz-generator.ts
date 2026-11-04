@@ -45,6 +45,8 @@ export interface Quiz {
   difficulty: 'easy' | 'medium' | 'hard';
   timeLimit?: number; // in minutes
   generatedFromSources: string[]; // document IDs
+  /** A quiz still being written: how many questions it will have when done */
+  expectedCount?: number;
   createdAt: Date;
 }
 

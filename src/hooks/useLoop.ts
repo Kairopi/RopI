@@ -105,7 +105,7 @@ export function loopTasks(state: Pick<LoopState, 'dueCards' | 'weakSpots' | 'job
       tags: ['study'],
       source: 'reviews',
       href: '/reviews',
-      why: `${state.dueCards} card${state.dueCards === 1 ? ' is' : 's are'} due. FSRS picked today because that's right before you'd forget them.`,
+      why: `${state.dueCards} card${state.dueCards === 1 ? ' is' : 's are'} due today, right before you'd forget them.`,
     });
   }
 
@@ -127,7 +127,7 @@ export function loopTasks(state: Pick<LoopState, 'dueCards' | 'weakSpots' | 'job
         : `/quiz/new?topic=${encodeURIComponent(w.topic)}&focus=${encodeURIComponent(w.concept)}`,
       why: fromSource
         ? `Your quizzes show ${w.concept} under 50%. Practice is written from your document "${fromSource.title}".`
-        : `Your quizzes show ${w.concept} under 50%. Meta Muse writes a 6-question quiz on just that.`,
+        : `Your quizzes show ${w.concept} under 50%. A 6-question quiz on just that.`,
     });
   }
 

@@ -126,7 +126,7 @@ export function VoiceQuiz({ quiz, onComplete, autoStart = false }: VoiceQuizProp
     const timer = setTimeout(() => speechManager.stopListening(), LISTEN_TIMEOUT_MS);
     try {
       // Single letters ("B", "see") are what the browser recogniser is tuned for; Muse takes over where it's missing
-      return await speechManager.listenDetailed({ onInterim: (t) => isCurrent(id) && setLive(t), prefer: 'browser', keywords: ['A', 'B', 'C', 'D', 'option', 'skip', 'repeat'] });
+      return await speechManager.listenDetailed({ onInterim: (t) => isCurrent(id) && setLive(t), prefer: 'browser', quick: true, keywords: ['A', 'B', 'C', 'D', 'option', 'skip', 'repeat'] });
     } catch (e) {
       if (e instanceof SpeechError && (e.code === 'no-speech' || e.code === 'aborted')) return 'timeout';
       throw e;

@@ -56,7 +56,7 @@ const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hou
 
 // Voice preferences: which system voice and how fast
 const PREF = 'ropi-voice-v1';
-type VoicePref = { voice?: string; rate: number; muted: boolean; handsFree: boolean; natural?: boolean; naturalVoice?: string; engine?: 'muse' | 'browser' };
+type VoicePref = { voice?: string; rate: number; muted: boolean; handsFree: boolean; natural?: boolean; naturalVoice?: string; engine?: 'muse' | 'browser'; patience?: 'short' | 'normal' | 'long' };
 const loadPref = (): VoicePref => {
   try {
     return { rate: 1, muted: false, handsFree: true, ...JSON.parse(localStorage.getItem(PREF) ?? '{}') };
@@ -364,7 +364,8 @@ export default function Talk() {
     setNotice(null);
   };
 
-  const main = () => (state === 'idle' ? void listen() : stop());
+  // Tap while listening = "I'm done, send it" (what you said so far is kept); tap while Ropi talks = stop
+  const main = () => (state === 'idle' ? void listen() : state === 'listening' ? speechManager.stopListening() : stop());
   const empty = convo.turns.length === 0;
 
   return (
@@ -454,14 +455,26 @@ export default function Talk() {
                     </select>
                   )}
                 </div>
-                <label className="text-muted-foreground sm:col-span-3">
+                <label className="text-muted-foreground">
+                  Wait for me to finish
+                  <select
+                    value={pref.patience ?? 'normal'}
+                    onChange={(e) => setPref((p) => ({ ...p, patience: e.target.value as VoicePref['patience'] }))}
+                    className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-[13px] text-foreground"
+                  >
+                    <option value="short">A short pause</option>
+                    <option value="normal">A normal pause</option>
+                    <option value="long">A long pause (I think while I talk)</option>
+                  </select>
+                </label>
+                <label className="text-muted-foreground sm:col-span-2">
                   Listening
                   <select
                     value={pref.engine ?? (museListenAvailable() ? 'muse' : 'browser')}
                     onChange={(e) => setPref((p) => ({ ...p, engine: e.target.value as 'muse' | 'browser' }))}
                     className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-[13px] text-foreground"
                   >
-                    {museListenAvailable() && <option value="muse">Meta Muse Voice Transcribe (works in every browser)</option>}
+                    {museListenAvailable() && <option value="muse">Ropi’s own listening (works in every browser)</option>}
                     <option value="browser">This browser’s speech recognition</option>
                   </select>
                 </label>
@@ -538,7 +551,7 @@ export default function Talk() {
           <div className={cn('flex flex-col', empty && 'items-center')}>
             <div className={cn('min-h-[20px] text-[13px]', empty ? 'mb-3 max-w-md text-center' : 'mb-2 px-1')}>
               {state === 'listening' ? (
-                <span className={interim ? 'text-foreground' : 'text-muted-foreground'}>{interim || 'Listening…'}</span>
+                <span className={interim ? 'text-foreground' : 'text-muted-foreground'}>{interim ? `${interim} …` : 'Listening. Take your time, tap when you’re done.'}</span>
               ) : state === 'speaking' ? (
                 <span className="text-muted-foreground">Ropi is talking. Tap the button to stop.</span>
               ) : notice ? (
@@ -583,7 +596,7 @@ function MicButton({ state, onClick, disabled, big = false, reduce, level = 0 }:
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={state === 'idle' ? 'Talk to Ropi' : 'Stop'}
+      aria-label={state === 'idle' ? 'Talk to Ropi' : state === 'listening' ? 'Done, send it' : 'Stop'}
       className={cn(
         'relative flex shrink-0 items-center justify-center rounded-full text-primary-foreground transition-transform active:scale-95 disabled:opacity-40',
         big ? 'h-20 w-20 shadow-float' : 'h-10 w-10',
@@ -603,7 +616,7 @@ function MicButton({ state, onClick, disabled, big = false, reduce, level = 0 }:
       ) : state === 'idle' ? (
         <Mic className={big ? 'h-8 w-8' : 'h-5 w-5'} />
       ) : state === 'listening' ? (
-        <MicOff className={big ? 'h-8 w-8' : 'h-5 w-5'} />
+        <Check className={big ? 'h-8 w-8' : 'h-5 w-5'} />
       ) : (
         <Pause className={big ? 'h-8 w-8' : 'h-5 w-5'} />
       )}

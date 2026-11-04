@@ -46,7 +46,7 @@ function localAt(daysFromToday: number, hhmm: string): Date {
 export const mockTasks: Task[] = [
   {
     id: 'task-6',
-    title: 'Review Flashcards (FSRS)',
+    title: 'Review cards',
     duration: 15,
     priority: 'P2',
     deadline: localAt(1, '22:00'),

@@ -92,8 +92,8 @@ export async function callMuse(prompt: string, options: MuseCallOptions = {}): P
     if (!content) {
       throw new Error(
         choice?.finish_reason === 'length'
-          ? 'Muse ran out of tokens before answering. Try a shorter request.'
-          : 'Muse returned an empty response.'
+          ? 'The answer got cut off. Try a shorter request.'
+          : 'Ropi got an empty answer. Try again.'
       );
     }
 

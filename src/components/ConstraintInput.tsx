@@ -142,9 +142,11 @@ export default function ConstraintInput({ onSubmit, isLoading, previewImpact }: 
               <div className="eyebrow !text-accent-foreground">{TYPE_LABELS[parsed.type]}</div>
               <div className="mt-1 truncate text-[13px] text-foreground">"{parsed.description}"</div>
             </div>
-            <Badge variant="outline" className="shrink-0 bg-card">
-              {parsed.parsedBy === 'muse' ? 'Parsed by Meta Muse' : 'Parsed by rules'}
-            </Badge>
+            {parsed.parsedBy !== 'muse' && (
+              <Badge variant="outline" className="shrink-0 bg-card">
+                Read with simple rules
+              </Badge>
+            )}
           </div>
 
           <dl className="space-y-1.5 px-4 py-3 text-[13px]">

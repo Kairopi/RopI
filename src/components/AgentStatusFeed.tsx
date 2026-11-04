@@ -99,8 +99,8 @@ export function generateStatusUpdates(
       agent: 'system',
       action:
         constraint.parsedBy === 'muse'
-          ? 'Meta Muse turned your sentence into a structured change'
-          : 'Understood your sentence with built-in rules (Muse unavailable)',
+          ? 'Read your sentence and turned it into a change to your week'
+          : 'Read your sentence with simple built-in rules',
       timestamp: 0,
     },
     {

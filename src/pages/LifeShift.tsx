@@ -48,7 +48,7 @@ function pipelineSteps(after: Plan, changed: number, constraint?: Constraint): A
   if (constraint) {
     steps.push({
       agent: 'system',
-      action: constraint.parsedBy === 'muse' ? 'Meta Muse read your sentence and returned structured data' : 'Built-in rules read your sentence (Meta Muse unavailable)',
+      action: constraint.parsedBy === 'muse' ? 'Read your sentence' : 'Read your sentence with simple built-in rules',
       timestamp: 0,
     });
   }

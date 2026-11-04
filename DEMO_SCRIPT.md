@@ -2,6 +2,8 @@
 
 The story: **turn dead time into growth time.** People who moved abroad, are changing careers, or are studying for a certification while job hunting don't get free evenings. They get 5 minutes on the platform and 20 on the bus. Ropi makes those minutes count, and keeps the bigger plan moving when the week changes.
 
+Speed (measured 2026-11-04): a quiz on a typed topic shows its first question about 3 s after you press Quiz me (it starts writing while you type), about 6 s from a cold link; a study guide is ready to review in about 8 s; Talk waits up to about 3 s when you trail off mid-sentence, and about 1 s after a finished question.
+
 Every step below is a flow the end-to-end tests run against the live app (`today-e2e`, `spare-e2e`, `e2e-browser`, `talk-e2e`, `upload-e2e`, `jobs-e2e`, `history-e2e`). Times in brackets are what those runs measured, so you know where to cut. Say only what's on screen.
 
 ## Before you record
@@ -65,7 +67,7 @@ The two questions you missed, with answers. Tap **Explain Lambda cold starts sim
 **Screen:** LifeShift.
 
 1. Click the example "Manager added shift, only 20min tonight". **Preview** shows what will move, then **Replan my week**. [Meta Muse reads it in about 1.5 s]
-2. Blocks travel to their new slots. Point at **Parsed by Meta Muse** and the reason on each move.
+2. Blocks travel to their new slots. Point at the reason on each move. (If Muse were down, you'd see **Read with simple rules** instead.)
 
 > "Meta Muse reads the sentence. The scheduler, not the model, decides what moves, and says why."
 
@@ -97,7 +99,8 @@ Point at **Growth time**, then History's day view: the quiz, the reviews, the re
 
 ## Q&A, honest answers
 
-- **How does it pick what to do in 5 minutes?** A small set of rules, not a model: cards FSRS says are due first (about 20 s each), then the concept you score worst on, then a job closing in the next 3 days, then a short brief on your goal. Audio only drops anything that needs the screen. It never plans more minutes than you said.
+- **What does FSRS mean?** Free Spaced Repetition Scheduler: an open-source method that works out, for each card, the day you're about to forget it, and brings it back then. The app just says "comes back right before you'd forget it".
+- **How does it pick what to do in 5 minutes?** A small set of rules, not a model: cards that are due first (about 20 s each), then the concept you score worst on, then a job closing in the next 3 days, then a short brief on your goal. Audio only drops anything that needs the screen. It never plans more minutes than you said.
 - **Does it apply to jobs for me?** No. You apply on the company site. Ropi tracks it, and marks it as something you reported.
 - **Where are Meta models used?** Reading your sentences (free time, LifeShift, Talk), writing quizzes, lessons and explanations, live news with web search grounding, document summaries, Ask Ropi answers and resume tailoring. All use `muse-spark-1.3` on the Meta Model API.
 - **What isn't AI?** The scheduler, the spare-minutes picker, FSRS review timing and the resume score. Those need to be repeatable and explainable.

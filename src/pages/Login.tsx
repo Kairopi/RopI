@@ -120,7 +120,7 @@ export default function Login() {
           )}
 
           <p className="mt-10 text-[12px] leading-relaxed text-muted-foreground">
-            Built with Meta Muse for planning, quizzes and lessons. Review scheduling uses the open FSRS algorithm.
+            Powered by Meta Muse.
           </p>
         </div>
       </section>

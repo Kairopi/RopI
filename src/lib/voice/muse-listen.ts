@@ -13,6 +13,7 @@
  * unlike the browser's own speech recognition.
  */
 import { SpeechError, type Heard } from './speech-manager';
+import { waitAfter } from './endpoint';
 
 const KEY = import.meta.env.VITE_MUSE_API_KEY as string | undefined;
 const BASE = (import.meta.env.VITE_META_API_BASE_URL as string | undefined) || 'https://api.meta.ai/v1';
@@ -211,7 +212,8 @@ export async function listenWithMuse(opts: MuseListenOptions = {}): Promise<Hear
         if (open.size === 0) partial = '';
         opts.onInterim?.(said());
         clearTimeout(grace);
-        if (open.size === 0) grace = setTimeout(() => finish(said()), opts.graceMs ?? 900);
+        // Wait longer when it sounds unfinished ("...and", one word), shorter for a finished question
+        if (open.size === 0) grace = setTimeout(() => finish(said()), opts.graceMs ?? waitAfter(said()));
       }
     };
     ws.onerror = () => fail('network');

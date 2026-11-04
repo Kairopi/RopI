@@ -34,7 +34,7 @@ export default function LearningHub() {
     <DashboardLayout>
       <PageHeader
         title="Study guides"
-        description="Everything Meta Muse wrote for you from a topic or a document, with the flashcards you kept."
+        description="Your study guides, with the cards you kept."
         actions={
           <Button onClick={() => navigate('/learning')}>
             <Plus />
@@ -56,7 +56,7 @@ export default function LearningHub() {
           </span>
           <h3 className="text-[17px] font-semibold">No study guides yet</h3>
           <p className="mt-1 max-w-sm text-[13.5px] text-muted-foreground">
-            Give Meta Muse a topic or upload a PDF, and it writes a guide plus flashcards you can review.
+            Give Ropi a topic or a PDF, and it writes a short guide with real examples, plus cards to review.
           </p>
           <Button className="mt-5" onClick={() => navigate('/learning')}>
             <Plus />

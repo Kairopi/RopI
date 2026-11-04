@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase';
 import { callMuse, isMuseConfigured, MUSE_MODELS } from '@/lib/api/muse';
 import { loadFolders, type Subtopic as Sub, type TopicFolder } from '@/lib/library/topics';
 import { addTo, subtopicKey, updateIn } from '@/lib/library/notes';
+import { prefetchTopicQuiz } from '@/lib/learning/topic-quiz';
 import { topicKey, type SavedLink } from '@/lib/library/store';
 import { cn } from '@/lib/utils';
 
@@ -115,7 +116,7 @@ ${s.notes.slice(0, 6).map((n) => `- ${n.note ?? n.title}`).join('\n') || '(none)
 
 4 to 6 short lines starting with "- ": the core idea in plain words, what they already get right, what they keep missing and the correct version, and one thing to practise next. Plain text, no other markdown.
 Return ONLY JSON: {"note": "..."}`,
-      { model: MUSE_MODELS.fast, reasoningEffort: 'low', json: true, maxTokens: 3000, timeoutMs: 30000 }
+      { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 3000, timeoutMs: 30000 }
     );
     return String(JSON.parse(out.match(/\{[\s\S]*\}/)?.[0] ?? out).note ?? '').trim();
   };
@@ -162,7 +163,7 @@ Return ONLY JSON: {"note": "..."}`,
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => navigate(quizHref)}>
+          <Button onPointerEnter={() => prefetchTopicQuiz(folder.topic, s.name)} onFocus={() => prefetchTopicQuiz(folder.topic, s.name)} onClick={() => navigate(quizHref)}>
             <BookOpen />
             Quiz me on this
           </Button>

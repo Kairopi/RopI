@@ -200,7 +200,7 @@ export default function Setup() {
                   />
                   <div className="flex items-center justify-between px-3 pb-2.5">
                     <span className="text-[11.5px] text-muted-foreground">
-                      {parsedBy ? (parsedBy === 'muse' ? 'Read by Meta Muse' : 'Read by built-in rules') : 'Say it however you like'}
+                      {parsedBy ? (parsedBy === 'muse' ? 'Got it' : 'Read with simple rules') : 'Say it however you like'}
                     </span>
                     <Button size="sm" onClick={readSentence} disabled={reading || !sentence.trim()}>
                       {reading ? <Loader2 className="animate-spin" /> : <Plus />}

@@ -74,12 +74,15 @@ export async function generateStudyGuide(
   try {
     // The three parts don't depend on each other: ask Muse for all of them at once (about 3x faster)
     console.log('📝 Writing summary, flashcards and quiz together...')
-    const [{ summary, keyPoints, prerequisites, learningObjectives }, flashcards, quizQuestions] = await Promise.all([
+    // (No quiz here: the guide's Quiz tab writes a fresh one when you open it, so writing one now was wasted time)
+    // Cards in two halves at once (core ideas / using it), so they arrive in about half the time
+    const [{ summary, keyPoints, prerequisites, learningObjectives }, cardsA, cardsB] = await Promise.all([
       generateSummary(documentText, topic, difficulty),
-      generateFlashcards(documentText, topic, 10, difficulty, documentTitle),
-      // The quiz is optional: a failure here shouldn't lose the guide
-      generateQuizFromTextWithMuse(documentText, topic, difficulty, 5).catch(() => []),
+      generateFlashcards(documentText, topic, 4, difficulty, documentTitle, 'the core ideas: what each thing is and why it matters'),
+      generateFlashcards(documentText, topic, 4, difficulty, documentTitle, 'using it at work and the common mistakes people make').catch(() => []),
     ])
+    const flashcards = [...cardsA, ...cardsB].map((c, i) => ({ ...c, id: `card-${i + 1}` }))
+    const quizQuestions: Awaited<ReturnType<typeof generateQuizFromTextWithMuse>> = []
 
     // Calculate estimated study time
     const estimatedStudyTimeMinutes = calculateStudyTime(
@@ -155,14 +158,11 @@ ${documentText.substring(0, 15000)}${documentText.length > 15000 ? '\n...(trunca
 Generate a comprehensive study guide overview in JSON format:
 
 {
-  "summary": "300-500 word summary covering: what it is, why it matters, key concepts, practical applications. Write in active voice, use examples, and connect to real-world scenarios.",
+  "summary": "150-250 words in plain English, for someone busy who wants it straight: what it is in one sentence, why it matters at work, then one short real-life scenario that shows it happening (a named situation, e.g. 'Your team is launching a feature on Friday...'). Short sentences. No jargon without saying what it means.",
   
   "keyPoints": [
-    "Bullet point of first main concept",
-    "Second key concept",
-    "Third important idea",
-    "Fourth takeaway",
-    "Fifth critical point"
+    "Each key point is one idea in plain words, then 'For example:' and a one-sentence real situation",
+    "(4 to 5 of these)"
   ],
   
   "prerequisites": [
@@ -178,7 +178,7 @@ Generate a comprehensive study guide overview in JSON format:
   ]
 }
 
-Make it actionable and career-focused. Use clear, professional language.
+Make it simple to get and straightforward: everyday words, concrete examples, nothing padded.
 Return ONLY valid JSON (no markdown formatting).
 `;
 
@@ -186,7 +186,7 @@ Return ONLY valid JSON (no markdown formatting).
     // JSON mode, and one retry: a long summary occasionally comes back with a broken quote
     let parsed: any = null
     for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-      const response = await callMuseWonder(prompt, 0.7, { json: true })
+      const response = await callMuseWonder(prompt, 0.7, { json: true, reasoningEffort: 'minimal', maxTokens: 3000 })
       try {
         parsed = JSON.parse(response.match(/\{[\s\S]*\}/)?.[0] ?? response)
       } catch (e) {
