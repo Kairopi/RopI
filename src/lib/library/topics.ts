@@ -30,6 +30,20 @@ export interface Concept {
   lastAttempt: string | null;
 }
 
+/** One subtopic: what your quizzes score on it, your notes and links, the questions you missed, and talks about it */
+export interface Subtopic {
+  key: string;
+  name: string;
+  concept?: Concept;
+  row?: TopicRow;
+  notes: SavedLink[];
+  links: SavedLink[];
+  conversations: Conversation[];
+  cards: number;
+  dueCards: number;
+  lastActivity: string | null;
+}
+
 export interface TopicFolder {
   key: string;
   name: string;
@@ -41,6 +55,10 @@ export interface TopicFolder {
   sources: Source[];
   concepts: Concept[];
   subfolders: TopicRow[];
+  /** Concepts from your quizzes and subtopics you added, merged, weakest first */
+  subs: Subtopic[];
+  /** Notes saved to the folder itself (not to a subtopic) */
+  notes: SavedLink[];
   cards: number;
   dueCards: number;
   conversations: Conversation[];
@@ -56,7 +74,7 @@ export async function loadFolders(userId: string): Promise<TopicFolder[]> {
     supabase.from('skill_levels').select('topic, confidence, last_quiz_at').eq('user_id', userId),
     supabase.from('quiz_attempts').select('id, topic, score, correct_answers, total_questions, quiz_mode, weak_spots, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(300),
     supabase.from('concept_stats').select('topic, concept, accuracy, attempts, last_attempt_at').eq('user_id', userId),
-    supabase.from('concept_cards').select('topic, due_date').eq('user_id', userId),
+    supabase.from('concept_cards').select('topic, subtopic, due_date').eq('user_id', userId),
     listSources().catch(() => ({ sources: [] as Source[], available: false })),
     listConversations().catch(() => [] as Conversation[]),
     listTopics().catch(() => [] as TopicRow[]),
@@ -68,7 +86,7 @@ export async function loadFolders(userId: string): Promise<TopicFolder[]> {
     if (!key) return null;
     let f = folders.get(key);
     if (!f) {
-      f = { key, name: topic, topic, confidence: null, attempts: [], sources: [], concepts: [], subfolders: [], cards: 0, dueCards: 0, conversations: [], links: [], lastActivity: null };
+      f = { key, name: topic, topic, confidence: null, attempts: [], sources: [], concepts: [], subfolders: [], subs: [], notes: [], cards: 0, dueCards: 0, conversations: [], links: [], lastActivity: null };
       folders.set(key, f);
     }
     return f;
@@ -106,7 +124,8 @@ export async function loadFolders(userId: string): Promise<TopicFolder[]> {
   // A conversation can cover several topics ("explain X", then "a podcast on Y"): file it under each
   for (const c of convos) {
     const topics = new Set<string>();
-    if (c.topic_key) topics.add(c.topic_key);
+    // "folder::subtopic" is a talk about a subtopic: it belongs to the folder too
+    if (c.topic_key) topics.add(c.topic_key.split('::')[0]);
     for (const t of c.turns) {
       const topic = t.kind?.split(':').slice(1).join(':').trim();
       if (topic) topics.add(topicKey(topic));
@@ -129,12 +148,60 @@ export async function loadFolders(userId: string): Promise<TopicFolder[]> {
     }
     f.row = r;
     f.name = r.name;
-    f.links = r.links ?? [];
+    f.links = (r.links ?? []).filter((l) => l.kind !== 'note');
+    f.notes = (r.links ?? []).filter((l) => l.kind === 'note');
     f.lastActivity = latest(f.lastActivity, r.links?.map((l) => l.added_at).sort().pop(), r.created_at);
   }
   for (const r of rows.filter((x) => x.parent_id)) {
     const parent = [...folders.values()].find((f) => f.row?.id === r.parent_id);
     parent?.subfolders.push(r);
+  }
+
+  // Subtopics: the concepts your quizzes score + the ones you added, each with its own notes, cards and talks
+  for (const f of folders.values()) {
+    const subs = new Map<string, Subtopic>();
+    const sub = (name: string) => {
+      const key = topicKey(name);
+      if (!key) return null;
+      let s = subs.get(key);
+      if (!s) {
+        s = { key, name, notes: [], links: [], conversations: [], cards: 0, dueCards: 0, lastActivity: null };
+        subs.set(key, s);
+      }
+      return s;
+    };
+    for (const c of f.concepts) {
+      const s = sub(c.concept);
+      if (s) {
+        s.concept = c;
+        s.lastActivity = latest(s.lastActivity, c.lastAttempt);
+      }
+    }
+    for (const r of f.subfolders) {
+      const s = sub(r.name);
+      if (!s) continue;
+      s.row = r;
+      s.name = s.concept ? s.name : r.name;
+      s.notes = (r.links ?? []).filter((l) => l.kind === 'note');
+      s.links = (r.links ?? []).filter((l) => l.kind !== 'note');
+      s.lastActivity = latest(s.lastActivity, r.links?.map((l) => l.added_at).sort().pop(), r.created_at);
+    }
+    for (const c of cards.data ?? []) {
+      if (topicKey(c.topic) !== f.key || !c.subtopic) continue;
+      const s = sub(c.subtopic);
+      if (!s) continue;
+      s.cards++;
+      if (c.due_date && c.due_date <= nowIso) s.dueCards++;
+    }
+    for (const c of f.conversations) {
+      const k = c.topic_key?.split('::')[1];
+      if (!k) continue;
+      const s = subs.get(k);
+      if (!s) continue;
+      s.conversations.push(c);
+      s.lastActivity = latest(s.lastActivity, c.updated_at);
+    }
+    f.subs = [...subs.values()].sort((a, b) => (a.concept?.accuracy ?? 101) - (b.concept?.accuracy ?? 101) || a.name.localeCompare(b.name));
   }
 
   // Names typed all lowercase (or taken from a sentence) read better capitalised; your own renames are kept as typed

@@ -52,6 +52,14 @@ Every step below is a flow the end-to-end tests run against the live app (`today
 
 > "No typing, no looking. And every conversation is saved under its topic with the time."
 
+### Optional, 20 s: everything about one subtopic
+
+**Screen:** Learn, the AWS Lambda folder, then **Lambda cold starts**.
+
+The two questions you missed, with answers. Tap **Explain Lambda cold starts simply** in Ask Ropi, then **Save as note**, then **Practise today**.
+
+> "Everything about one idea lives in one place: what I missed, my notes, my conversations, my links."
+
 ### 1:40 to 2:05. When the week changes: LifeShift
 
 **Screen:** LifeShift.
@@ -93,7 +101,7 @@ Point at **Growth time**, then History's day view: the quiz, the reviews, the re
 - **Does it apply to jobs for me?** No. You apply on the company site. Ropi tracks it, and marks it as something you reported.
 - **Where are Meta models used?** Reading your sentences (free time, LifeShift, Talk), writing quizzes, lessons and explanations, live news with web search grounding, document summaries, Ask Ropi answers and resume tailoring. All use `muse-spark-1.3` on the Meta Model API.
 - **What isn't AI?** The scheduler, the spare-minutes picker, FSRS review timing and the resume score. Those need to be repeatable and explainable.
-- **Is the voice from Meta?** No. Voice uses the browser's speech recognition and speech output. Muse handles the language work.
+- **Is the voice from Meta?** The listening is: Muse Voice Transcribe, realtime, which also decides when you've finished speaking. Meta's API has no text-to-speech, so Ropi speaks with the best browser voice, or the optional on-device Kokoro voice if your device is fast enough.
 - **How do you stop made-up answers?** Document quiz quotes are checked word for word against your file. Ask Ropi citations are checked against the evidence it was given. News comes with the URLs Muse searched. Replan reasons come from scheduler data.
 - **Where is my data?** Quizzes, cards, jobs, documents, topic folders, conversations and History are in Supabase behind row-level security (only your account can read your rows). Your week plan is stored in your browser.
 - **Is it ready for real users?** It's a hackathon build. The Meta API key needs to move behind a server before launch, and there's no email login or cross-device sync yet.

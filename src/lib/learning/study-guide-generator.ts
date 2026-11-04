@@ -72,26 +72,14 @@ export async function generateStudyGuide(
   console.log(`📚 Generating study guide for: ${topic}`)
 
   try {
-    // Step 1: Generate summary and key points
-    console.log('📝 Step 1/3: Generating summary...')
-    const { summary, keyPoints, prerequisites, learningObjectives } = await generateSummary(
-      documentText,
-      topic,
-      difficulty
-    )
-
-    // Step 2: Generate flashcards (10 cards)
-    console.log('🎴 Step 2/3: Generating flashcards...')
-    const flashcards = await generateFlashcards(documentText, topic, 10, difficulty, documentTitle)
-
-    // Step 3: Generate quiz (5 questions)
-    console.log('❓ Step 3/3: Generating quiz...')
-    const quizQuestions = await generateQuizFromTextWithMuse(
-      documentText,
-      topic,
-      difficulty,
-      5
-    )
+    // The three parts don't depend on each other: ask Muse for all of them at once (about 3x faster)
+    console.log('📝 Writing summary, flashcards and quiz together...')
+    const [{ summary, keyPoints, prerequisites, learningObjectives }, flashcards, quizQuestions] = await Promise.all([
+      generateSummary(documentText, topic, difficulty),
+      generateFlashcards(documentText, topic, 10, difficulty, documentTitle),
+      // The quiz is optional: a failure here shouldn't lose the guide
+      generateQuizFromTextWithMuse(documentText, topic, difficulty, 5).catch(() => []),
+    ])
 
     // Calculate estimated study time
     const estimatedStudyTimeMinutes = calculateStudyTime(
@@ -195,15 +183,16 @@ Return ONLY valid JSON (no markdown formatting).
 `;
 
   try {
-    const response = await callMuseWonder(prompt, 0.7)
-    
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to parse summary from Muse response')
+    // JSON mode, and one retry: a long summary occasionally comes back with a broken quote
+    let parsed: any = null
+    for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+      const response = await callMuseWonder(prompt, 0.7, { json: true })
+      try {
+        parsed = JSON.parse(response.match(/\{[\s\S]*\}/)?.[0] ?? response)
+      } catch (e) {
+        if (attempt === 1) throw new Error('Meta Muse sent back a summary Ropi couldn’t read. Try again.')
+      }
     }
-    
-    const parsed = JSON.parse(jsonMatch[0])
     
     return {
       summary: parsed.summary || '',

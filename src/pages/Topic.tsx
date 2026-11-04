@@ -10,9 +10,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Panel, setPanelOpen } from '@/components/Panel';
+import { AskPanel } from '@/components/AskPanel';
+import { NotesPanel } from '@/components/NotesPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, BookOpen, Brain, ChevronDown, ExternalLink, FileText, Loader2, MessageSquare, Mic, Plus, Trash2 } from '@/components/icons';
+import { ArrowLeft, ArrowRight, BookOpen, Brain, ChevronDown, ExternalLink, FileText, Loader2, MessageSquare, Mic, Plus, Trash2 } from '@/components/icons';
 import { useUserId } from '@/contexts/AuthContext';
 import { BUILT_IN_QUIZ_LIST } from '@/lib/mock/quizzes';
 import { loadFolders, type TopicFolder } from '@/lib/library/topics';
@@ -92,7 +94,7 @@ export default function Topic() {
     if (!/^https?:\/\//i.test(url)) return;
     const entry: SavedLink = { title: link.title.trim() || new URL(url).hostname, url, kind: /podcast|spotify|apple\.com\/.*podcast/i.test(url) ? 'podcast' : /youtube|youtu\.be|vimeo/i.test(url) ? 'video' : 'article', added_at: new Date().toISOString(), added_by: 'you' };
     setLink({ title: '', url: '' });
-    void ensureRow({ match_key: folder.key, links: [...folder.links, entry] });
+    void ensureRow({ match_key: folder.key, links: [...folder.notes, ...folder.links, entry] });
   };
 
   const counts = [
@@ -147,10 +149,6 @@ export default function Topic() {
             <Mic />
             Voice quiz
           </Button>
-          <Button variant="outline" onClick={() => navigate(`/talk?q=${encodeURIComponent(`Explain the basics of ${folder.topic} simply`)}`)}>
-            <MessageSquare />
-            Ask Ropi about it
-          </Button>
           {folder.dueCards > 0 && (
             <Button variant="ghost" onClick={() => navigate('/reviews', { state: { topic: folder.topic } })}>
               <Brain />
@@ -161,66 +159,87 @@ export default function Topic() {
       </header>
 
       <div className="space-y-5">
-        {/* Subtopics */}
-        <Panel id="topic-subtopics" title="Subtopics" meta={folder.concepts.length + folder.subfolders.length ? String(folder.concepts.length + folder.subfolders.length) : undefined} summary={folder.concepts.map((c) => c.concept).join(' · ') || 'None yet'}>
-          {folder.concepts.length > 0 && (
-            <ul className="mb-4 space-y-3">
-              {folder.concepts.map((c) => (
-                <li key={c.concept}>
-                  <div className="flex items-center gap-3 text-[13.5px]">
-                    <span className="min-w-0 flex-1 truncate font-medium">{c.concept}</span>
-                    <span className="tabular-nums text-muted-foreground">{Math.round(c.accuracy)}%</span>
-                    <button onClick={() => navigate(`/quiz/new?topic=${encodeURIComponent(folder.topic)}&focus=${encodeURIComponent(c.concept)}`)} className="text-[12px] font-medium text-primary hover:underline">
-                      Practice
-                    </button>
-                  </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className={cn('h-full rounded-full', tone(c.accuracy))} style={{ width: `${Math.max(3, c.accuracy)}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {folder.subfolders.length > 0 && (
-            <ul className="mb-4 divide-y rounded-xl border">
-              {folder.subfolders.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 px-3.5 py-2.5 text-[13.5px]">
-                  <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                  <button onClick={() => navigate(`/quiz/new?topic=${encodeURIComponent(folder.topic)}&focus=${encodeURIComponent(s.name)}`)} className="text-[12px] font-medium text-primary hover:underline">
-                    Quiz me
-                  </button>
-                  <button aria-label={`Remove ${s.name}`} onClick={() => deleteTopic(s.id).then(load)} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <form
-            className="flex max-w-md gap-2"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const n = sub.trim();
-              if (!n) return;
-              setSub('');
-              setBusy(true);
-              try {
-                const parent = folder.row ?? (await saveTopic({ match_key: folder.key, name: folder.name }));
-                await saveTopic({ match_key: topicKey(n), parent_id: parent.id, name: n });
-                await load();
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <Input value={sub} onChange={(e) => setSub(e.target.value)} placeholder="Add a subtopic, e.g. Stakeholder mapping" aria-label="New subtopic" maxLength={120} />
-            <Button type="submit" variant="outline" disabled={!sub.trim() || busy}>
-              <Plus />
-              Add
-            </Button>
-          </form>
-        </Panel>
+        {/* Ask + subtopics + notes: the working area */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
+          <AskPanel
+            folder={{ key: folder.key, name: folder.name }}
+            subtopic={null}
+            topic={folder.topic}
+            convoKey={folder.key}
+            conversations={folder.conversations}
+            notes={folder.notes.map((n) => n.note ?? n.title)}
+            onChange={load}
+          />
+          <div className="space-y-5">
+            <Panel id="topic-subtopics" title="Subtopics" meta={folder.subs.length ? String(folder.subs.length) : undefined} summary={folder.subs.map((s) => s.name).join(' · ') || 'None yet'}>
+              {folder.subs.length > 0 && (
+                <ul className="-mx-2 mb-3">
+                  {folder.subs.map((s) => {
+                    const acc = s.concept ? Math.round(s.concept.accuracy) : null;
+                    const bits = [
+                      acc !== null ? `${acc}% right` : 'not quizzed',
+                      s.notes.length ? `${s.notes.length} note${s.notes.length === 1 ? '' : 's'}` : null,
+                      s.cards ? `${s.cards} missed` : null,
+                      s.conversations.length ? `${s.conversations.length} talk${s.conversations.length === 1 ? '' : 's'}` : null,
+                    ].filter(Boolean);
+                    return (
+                      <li key={s.key}>
+                        <button
+                          onClick={() => navigate(`/learn/topic/${encodeURIComponent(folder.key)}/${encodeURIComponent(s.key)}`)}
+                          className="group w-full rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-muted/60"
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{s.name}</span>
+                            {s.dueCards > 0 && <span className="rounded-md bg-accent px-1.5 py-0.5 text-[11px] font-medium text-accent-foreground">{s.dueCards} due</span>}
+                            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                          </span>
+                          <span className="mt-0.5 block text-[12px] text-muted-foreground">{bits.join(' · ')}</span>
+                          {acc !== null && (
+                            <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-muted">
+                              <span className={cn('block h-full rounded-full', tone(acc))} style={{ width: `${Math.max(3, acc)}%` }} />
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <form
+                className="flex gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const n = sub.trim();
+                  if (!n) return;
+                  setSub('');
+                  setBusy(true);
+                  try {
+                    const parent = folder.row ?? (await saveTopic({ match_key: folder.key, name: folder.name }));
+                    await saveTopic({ match_key: topicKey(n), parent_id: parent.id, name: n });
+                    await load();
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Input value={sub} onChange={(e) => setSub(e.target.value)} placeholder="Add a subtopic, e.g. Stakeholder mapping" aria-label="New subtopic" maxLength={120} />
+                <Button type="submit" variant="outline" disabled={!sub.trim() || busy}>
+                  <Plus />
+                  Add
+                </Button>
+              </form>
+            </Panel>
 
+            <NotesPanel
+              id="topic-notes"
+              folder={{ key: folder.key, name: folder.name }}
+              subtopic={null}
+              notes={folder.notes}
+              practiceHref={`/learn/topic/${encodeURIComponent(folder.key)}`}
+              onChange={load}
+            />
+          </div>
+        </div>
         {/* Documents */}
         <Panel id="topic-docs" defaultOpen={folder.sources.length > 0} title="Documents" meta={folder.sources.length ? String(folder.sources.length) : undefined} summary={folder.sources.map((s) => s.title).join(' · ') || 'None yet'} actions={<Button size="sm" variant="ghost" onClick={() => { setPanelOpen('topic-docs', true); setUploading((u) => !u); }} aria-expanded={uploading}><Plus />Upload</Button>}>
           {uploading && (
@@ -312,6 +331,13 @@ export default function Topic() {
                       </span>
                       <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
                     </button>
+                    {open && c.topic_key?.includes('::') && (
+                      <div className="border-t border-dashed bg-background/60 px-4 pt-3">
+                        <button className="text-[12px] font-medium text-primary hover:underline" onClick={() => navigate(`/learn/topic/${encodeURIComponent(folder.key)}/${encodeURIComponent(c.topic_key!.split('::')[1])}`)}>
+                          Continue this conversation in its subtopic
+                        </button>
+                      </div>
+                    )}
                     {open && (
                       <ol className="space-y-2.5 border-t border-dashed bg-background/60 px-4 py-3">
                         {c.turns.map((t, i) => (
@@ -344,7 +370,7 @@ export default function Topic() {
                       {l.kind} · {l.added_by === 'ropi' ? 'saved by Ropi' : 'you saved'} {when(l.added_at)}
                     </div>
                   </div>
-                  <button aria-label={`Remove ${l.title}`} onClick={() => ensureRow({ match_key: folder.key, links: folder.links.filter((x) => x.url !== l.url) })} className="text-muted-foreground hover:text-destructive">
+                  <button aria-label={`Remove ${l.title}`} onClick={() => ensureRow({ match_key: folder.key, links: [...folder.notes, ...folder.links.filter((x) => x.url !== l.url)] })} className="text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </li>

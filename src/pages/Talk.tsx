@@ -17,14 +17,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Check, ExternalLink, Loader2, Mic, MicOff, Pause, Play, Plus, Volume2, VolumeX, X } from '@/components/icons';
+import { ArrowRight, Check, ExternalLink, FileText, Loader2, Mic, MicOff, Pause, Play, Plus, Volume2, VolumeX, X } from '@/components/icons';
 import { useUserId } from '@/contexts/AuthContext';
 import { usePlan } from '@/hooks/usePlan';
 import { useWeek } from '@/hooks/useWeek';
 import { useLoop } from '@/hooks/useLoop';
 import { useAgenda } from '@/hooks/useAgenda';
 import { sayTime } from '@/lib/coach/brief';
-import { speechManager, SpeechError } from '@/lib/voice/speech-manager';
+import { loadFolders } from '@/lib/library/topics';
+import { speechManager, SpeechError, voiceScore } from '@/lib/voice/speech-manager';
+import { KOKORO_VOICES, kokoroState, kokoroSupported, loadKokoro, onKokoro, type KokoroState } from '@/lib/voice/kokoro';
+import { museListenAvailable } from '@/lib/voice/muse-listen';
 import { respond, speakable, type Reply } from '@/lib/coach/brain';
 import { newConversation, saveConversation, saveTopic, listTopics, topicKey, type Conversation, type Turn, type SavedLink } from '@/lib/library/store';
 import { fetchJobDescription } from '@/lib/jobs/jobseek-client';
@@ -53,7 +56,8 @@ const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hou
 
 // Voice preferences: which system voice and how fast
 const PREF = 'ropi-voice-v1';
-const loadPref = (): { voice?: string; rate: number; muted: boolean; handsFree: boolean } => {
+type VoicePref = { voice?: string; rate: number; muted: boolean; handsFree: boolean; natural?: boolean; naturalVoice?: string; engine?: 'muse' | 'browser' };
+const loadPref = (): VoicePref => {
   try {
     return { rate: 1, muted: false, handsFree: true, ...JSON.parse(localStorage.getItem(PREF) ?? '{}') };
   } catch {
@@ -73,10 +77,24 @@ export default function Talk() {
   const weakSpots = useLoop((s) => s.weakSpots);
   const loopJobs = useLoop((s) => s.jobs);
   const agenda = useAgenda();
+  // Your folders, so "make me a note on..." is filed in the right place
+  const [library, setLibrary] = useState<{ key: string; name: string; topic: string; subs: string[] }[]>([]);
+  const refreshLibrary = useCallback(() => {
+    if (!userId) return;
+    loadFolders(userId)
+      .then((f) => setLibrary(f.map((x) => ({ key: x.key, name: x.name, topic: x.topic, subs: x.subs.map((s) => s.name) }))))
+      .catch(() => undefined);
+  }, [userId]);
+  useEffect(() => {
+    refreshLibrary();
+  }, [refreshLibrary]);
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
   const support = speechManager.getSupport();
 
   const [state, setState] = useState<State>('idle');
   const [interim, setInterim] = useState('');
+  const [level, setLevel] = useState(0);
   const [typed, setTyped] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [convo, setConvo] = useState<Conversation>(() => newConversation('voice'));
@@ -85,6 +103,13 @@ export default function Talk() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [showVoice, setShowVoice] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
+  const [natural, setNatural] = useState<KokoroState>(kokoroState);
+  useEffect(() => {
+    const off = onKokoro(setNatural);
+    return () => {
+      off();
+    };
+  }, []);
 
   const run = useRef(0);
   const silent = useRef(0);
@@ -100,7 +125,7 @@ export default function Talk() {
     localStorage.setItem(PREF, JSON.stringify(pref));
   }, [pref]);
   useEffect(() => {
-    speechManager.getVoices().then((v) => setVoices(v.filter((x) => x.lang.toLowerCase().startsWith('en'))));
+    speechManager.getVoices().then((v) => setVoices(v.filter((x) => x.lang.toLowerCase().startsWith('en')).sort((a, b) => voiceScore(b) - voiceScore(a))));
   }, []);
   // Braces matter: newer Chrome returns a Promise from scrollIntoView, and an effect must not return one
   useEffect(() => {
@@ -179,7 +204,13 @@ export default function Talk() {
     setInterim('');
     setState('listening');
     try {
-      const heard = await speechManager.listenDetailed({ onInterim: setInterim });
+      const heard = await speechManager.listenDetailed({
+        onInterim: setInterim,
+        onLevel: setLevel,
+        // Bias Muse toward your own topic words ("Lambda", "stakeholder mapping")
+        keywords: ['Ropi', ...libraryRef.current.flatMap((f) => [f.name, ...f.subs.slice(0, 4)])].slice(0, 30),
+      });
+      setLevel(0);
       if (run.current !== id) return;
       silent.current = 0;
       setInterim('');
@@ -249,7 +280,8 @@ export default function Talk() {
       setConvo(withYou);
       setState('thinking');
 
-      const reply = await respond(text, { userId, plan: planContext, goal: goal?.title ?? null, history: withYou.turns, addTask, spare: { dueCards, weakSpots, jobs: loopJobs }, agenda });
+      const reply = await respond(text, { userId, plan: planContext, goal: goal?.title ?? null, history: withYou.turns, addTask, spare: { dueCards, weakSpots, jobs: loopJobs }, agenda, library });
+      if (reply.intent === 'note') refreshLibrary();
       if (run.current !== id) return;
 
       const ropi: Turn = { role: 'ropi', text: reply.text, at: new Date().toISOString(), kind: `${reply.intent}:${reply.topic ?? ''}`, sources: reply.sources };
@@ -277,7 +309,7 @@ export default function Talk() {
         }, 350);
       } else setState('idle');
     },
-    [userId, planContext, goal, addTask, persist, say, navigate, support.stt, dueCards, weakSpots, loopJobs, agenda]
+    [userId, planContext, goal, addTask, persist, say, navigate, support.stt, dueCards, weakSpots, loopJobs, agenda, library, refreshLibrary]
   );
   // listen() and handle() call each other: go through refs so neither holds stale state
   const handleRef = useRef(handle);
@@ -382,6 +414,57 @@ export default function Talk() {
                     <option value={1.15}>Faster</option>
                   </select>
                 </label>
+                <div className="rounded-lg border bg-background p-3 sm:col-span-3">
+                  <label className="flex items-start gap-2.5 text-foreground">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      disabled={!kokoroSupported()}
+                      checked={!!pref.natural}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setPref((p) => ({ ...p, natural: on }));
+                        if (on) loadKokoro();
+                      }}
+                    />
+                    <span>
+                      <span className="block text-[13px] font-medium">Natural voice</span>
+                      <span className="block text-[12px] text-muted-foreground">
+                        Kokoro, an open-source neural voice that runs on your device. A one-time 92 MB download, then it works offline.
+                        {pref.natural && natural.status === 'loading' && ` Downloading ${natural.pct}%...`}
+                        {pref.natural && natural.status === 'checking' && ' Checking it’s fast enough on this device...'}
+                        {pref.natural && natural.status === 'ready' && ` Ready${natural.device === 'webgpu' ? ', using your graphics chip' : ''}.`}
+                        {pref.natural && natural.status === 'slow' && ` This device is too slow for it (about ${natural.rtf} seconds of work per second of speech), so Ropi uses the browser voice. Edge has free natural voices built in; Chrome has Google voices.`}
+                        {pref.natural && natural.status === 'error' && ` It couldn’t start here (${natural.error}), so the browser voice is used.`}
+                      </span>
+                    </span>
+                  </label>
+                  {pref.natural && (
+                    <select
+                      value={pref.naturalVoice ?? 'af_heart'}
+                      onChange={(e) => setPref((p) => ({ ...p, naturalVoice: e.target.value }))}
+                      className="mt-2 h-9 w-full rounded-lg border bg-background px-2 text-[13px] text-foreground"
+                      aria-label="Natural voice"
+                    >
+                      {KOKORO_VOICES.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <label className="text-muted-foreground sm:col-span-3">
+                  Listening
+                  <select
+                    value={pref.engine ?? (museListenAvailable() ? 'muse' : 'browser')}
+                    onChange={(e) => setPref((p) => ({ ...p, engine: e.target.value as 'muse' | 'browser' }))}
+                    className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-[13px] text-foreground"
+                  >
+                    {museListenAvailable() && <option value="muse">Meta Muse Voice Transcribe (works in every browser)</option>}
+                    <option value="browser">This browser’s speech recognition</option>
+                  </select>
+                </label>
                 <div className="flex flex-col justify-end gap-1.5">
                   <label className="inline-flex items-center gap-2">
                     <input type="checkbox" checked={pref.handsFree} onChange={(e) => setPref((p) => ({ ...p, handsFree: e.target.checked }))} />
@@ -464,7 +547,7 @@ export default function Talk() {
                 <span className="text-muted-foreground">{support.stt ? 'Tap the mic and talk' : 'Type your question below'}</span>
               )}
             </div>
-            {empty && <MicButton state={state} onClick={main} disabled={!support.stt && state === 'idle'} big reduce={!!reduce} />}
+            {empty && <MicButton state={state} onClick={main} disabled={!support.stt && state === 'idle'} big reduce={!!reduce} level={level} />}
 
             <form
               className={cn('flex w-full items-center gap-2 rounded-full border bg-card py-1 pl-4 pr-1', empty ? 'mt-4 max-w-md' : '')}
@@ -485,7 +568,7 @@ export default function Talk() {
               <Button type="submit" size="sm" variant={empty ? 'default' : 'ghost'} className="rounded-full" disabled={!typed.trim() || state === 'thinking'}>
                 Send
               </Button>
-              {!empty && <MicButton state={state} onClick={main} disabled={!support.stt && state === 'idle'} reduce={!!reduce} />}
+              {!empty && <MicButton state={state} onClick={main} disabled={!support.stt && state === 'idle'} reduce={!!reduce} level={level} />}
             </form>
           </div>
         </div>
@@ -494,7 +577,7 @@ export default function Talk() {
   );
 }
 
-function MicButton({ state, onClick, disabled, big = false, reduce }: { state: State; onClick: () => void; disabled: boolean; big?: boolean; reduce: boolean }) {
+function MicButton({ state, onClick, disabled, big = false, reduce, level = 0 }: { state: State; onClick: () => void; disabled: boolean; big?: boolean; reduce: boolean; level?: number }) {
   return (
     <button
       type="button"
@@ -507,7 +590,14 @@ function MicButton({ state, onClick, disabled, big = false, reduce }: { state: S
         state === 'listening' ? 'bg-destructive' : state === 'idle' ? 'bg-primary' : 'bg-foreground'
       )}
     >
-      {state === 'listening' && !reduce && <span className="absolute inset-0 animate-ping rounded-full bg-destructive/40" />}
+      {/* Listening: a ring that grows with your voice, so you can see Ropi hears you */}
+      {state === 'listening' && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full bg-destructive/25 transition-transform duration-100"
+          style={{ transform: `scale(${1 + (reduce ? 0 : Math.min(level, 1) * 0.55)})` }}
+        />
+      )}
       {state === 'thinking' ? (
         <Loader2 className={cn('animate-spin', big ? 'h-8 w-8' : 'h-5 w-5')} />
       ) : state === 'idle' ? (
@@ -556,6 +646,26 @@ function ReplyExtras({
           <Check className="h-3.5 w-3.5" />
           Added to your week
         </div>
+      )}
+
+      {reply.note && (
+        <button
+          onClick={() => onOpen(reply.note!.href)}
+          className="flex w-full items-start gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/40"
+        >
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
+            <FileText className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-medium">{reply.note.title}</span>
+            <span className="block text-[11.5px] text-muted-foreground">
+              Saved in {reply.note.folder}
+              {reply.note.subtopic ? ` › ${reply.note.subtopic}` : ''}
+              {reply.note.practice ? ` · ${reply.note.practice} added` : ''}
+            </span>
+          </span>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
       )}
 
       {reply.draft && (
@@ -678,7 +788,7 @@ function ReplyExtras({
         </div>
       )}
 
-      {reply.open && !reply.steps?.length && (
+      {reply.open && !reply.steps?.length && !reply.note && (
         <Button size="sm" variant={reply.open.auto ? 'default' : 'outline'} onClick={() => onOpen(reply.open!.href)}>
           {reply.open.label}
           <ArrowRight />

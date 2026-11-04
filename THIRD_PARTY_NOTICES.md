@@ -85,3 +85,11 @@ Not used:
 
 ## Apple Podcasts search
 https://itunes.apple.com/search and /lookup (public, no key), in `src/lib/coach/podcasts.ts`. Used to recommend shows and play their latest public episode. Every pick links to its page on Apple Podcasts.
+
+## Kokoro-82M and kokoro-js (natural voice, optional)
+- Model: https://huggingface.co/hexgrad/Kokoro-82M, ONNX build https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX. Apache License 2.0.
+- Library: kokoro-js 1.2.1 (https://www.npmjs.com/package/kokoro-js), Apache License 2.0, which uses Transformers.js (Apache License 2.0) and phonemizer.
+- Used in `src/lib/voice/kokoro.ts` and `kokoro.worker.ts`. Off unless you turn on **Natural voice** in Talk; the model is downloaded from Hugging Face to your browser and runs there.
+
+## Recommended Web Speech voices (design followed)
+The ranking in `voiceScore` (`src/lib/voice/speech-manager.ts`) follows the tested list in https://github.com/HadrienGardeur/web-speech-recommended-voices (Readium project). No code copied.

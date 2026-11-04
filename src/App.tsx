@@ -20,6 +20,7 @@ import Activity from './pages/Activity'
 import Talk from './pages/Talk'
 import Topic from './pages/Topic'
 import Document from './pages/Document'
+import Subtopic from './pages/Subtopic'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -150,6 +151,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Talk />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/learn/topic/:key/:sub"
+              element={
+                <ProtectedRoute>
+                  <Subtopic />
                 </ProtectedRoute>
               }
             />

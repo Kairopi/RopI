@@ -10,6 +10,8 @@
  *      quiz      starts a hands-free voice quiz on the topic
  *      plan      your plan, quiz history and cards, cited (Ask Ropi)
  *      spare     "I have 10 minutes on the train": the best use of that time, from your data
+ *      note      "make me a note on cold starts, I want to practise it tonight": Muse writes the note,
+ *                it's filed in the right folder and subtopic, and practice goes on your week
  *      day       "what do I have today?", "plan my day": reads your day from the plan itself
  *      week      "read me my week": the next 7 days, day by day
  *      add       adds a task to your week (Ropi finds the time)
@@ -31,8 +33,10 @@ import { parseQuickAdd } from '@/lib/week/quick-add';
 import type { Turn } from '@/lib/library/store';
 import { parseSpareRequest, planSpareTime, speakPlan, type SpareInput, type SpareStep } from '@/lib/spare/plan';
 import { dayBrief, weekBrief, type AgendaDay, type AgendaItem } from './brief';
+import { addTo, makeNote } from '@/lib/library/notes';
+import { topicKey } from '@/lib/library/store';
 
-export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'day' | 'week' | 'plan' | 'spare' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'chat';
+export type Intent = 'explain' | 'news' | 'podcast' | 'quiz' | 'note' | 'day' | 'week' | 'plan' | 'spare' | 'add' | 'jobs' | 'cv' | 'form' | 'apply' | 'chat';
 
 export interface Routed {
   intent: Intent;
@@ -59,6 +63,8 @@ export interface Reply {
   draft?: string;
   /** What to do with the minutes you have, in order */
   steps?: SpareStep[];
+  /** A note Ropi wrote and filed */
+  note?: { title: string; folder: string; subtopic: string | null; href: string; practice: string | null };
   /** The day (or days) Ropi just read out */
   agenda?: { name: string; items: AgendaItem[] }[];
 }
@@ -72,7 +78,11 @@ export interface CoachContext {
   spare?: Pick<SpareInput, 'dueCards' | 'weakSpots' | 'jobs'>;
   /** The next 7 days from the plan, for "read me my day / week" */
   agenda?: { days: AgendaDay[]; freeMinutes: number; atRiskTitles: string[]; deadlines: { title: string; at: string }[] };
-  addTask: (t: { title: string; duration: number; priority: 'P1' | 'P2' | 'P3'; deadline?: string; category: 'learning' | 'career' | 'life'; tags?: string[] }) => void;
+  addTask: (t: { title: string; duration: number; priority: 'P1' | 'P2' | 'P3'; deadline?: string; category: 'learning' | 'career' | 'life'; tags?: string[]; href?: string }) => void;
+  /** The folder (and subtopic) this conversation is about: questions are answered in that context */
+  focus?: { topic: string; folderKey: string; folderName: string; subtopic?: string | null; notes?: string[] };
+  /** Your folders and their subtopics, so a note can be filed in the right place */
+  library?: { key: string; name: string; topic: string; subs: string[] }[];
 }
 
 /** Spoken style: no markdown, no [H1] markers, no URLs read aloud */
@@ -93,6 +103,7 @@ const RULES: [Intent, RegExp][] = [
   ['jobs', /\b(jobs?|roles?|openings?|vacanc(y|ies)|positions?)\b/i],
   ['podcast', /\b(podcasts?|listen to|something to listen)\b/i],
   ['news', /\b(news|latest|what'?s new|what is new|recent(ly)?|this week in|updates? on)\b/i],
+  ['note', /\b((make|write|take|save|add|jot)( me)?( down)? (a )?(quick |short )?notes?|note (this|that|it) down|remember (this|that) for me)\b/i],
   ['quiz', /\b(quiz|test me|ask me (some )?questions|practice questions)\b/i],
   ['week', /\b(read (me )?my week|(what'?s|what is|what do i have)( on)?( for)? (this|the) week|my week|(this|the) week ahead|week look like)\b/i],
   ['day', /\b(read (me )?my (day|today)|plan my (day|today|evening)|(what'?s|what is)( on)?( for)? (today|tonight)|what do i have( on)?( for)? (today|tonight)|my day|today'?s plan|(what'?s|what is) the plan for (today|tonight)|day look like)\b/i],
@@ -138,6 +149,7 @@ intents:
 - podcast: something to listen to
 - quiz: they want to be quizzed / tested
 - spare: they say how much time they have or where they are (commute, waiting, getting dressed) and want the best use of it, without asking for one specific thing
+- note: they want Ropi to write or save a note about something (often to practise later)
 - day: what they have today, read their day, plan their day
 - week: what they have this week, read their week
 - plan: what they should focus on, their progress, what they get wrong
@@ -153,7 +165,7 @@ Return ONLY JSON:
       { model: MUSE_MODELS.fast, reasoningEffort: 'minimal', json: true, maxTokens: 1500, timeoutMs: 12000 }
     );
     const j = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? raw);
-    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'day', 'week', 'plan', 'spare', 'add', 'jobs', 'cv', 'form', 'apply', 'chat'];
+    const intents: Intent[] = ['explain', 'news', 'podcast', 'quiz', 'note', 'day', 'week', 'plan', 'spare', 'add', 'jobs', 'cv', 'form', 'apply', 'chat'];
     if (!intents.includes(j.intent)) return routeWithRules(text);
     if ((j.intent === 'plan' || j.intent === 'chat') && parseSpareRequest(text)) j.intent = 'spare';
     // "Plan my day" / "read me my week" are read straight from the plan: never send them to a long answer
@@ -182,8 +194,14 @@ async function explain(text: string, topic: string | null, ctx: CoachContext): P
   const evidence = await retrieve(text, null).catch(() => []);
   const notes = evidence.filter((e) => e.kind === 'note' || e.kind === 'card').slice(0, 4);
   const block = notes.map((e) => `[${e.title}] ${e.text.slice(0, 700)}`).join('\n');
+  const f = ctx.focus;
+  const focusBlock = f
+    ? `They are studying ${f.folderName}${f.subtopic ? `, and right now: ${f.subtopic}` : ''}. Answer about that.${
+        f.notes?.length ? `\nTheir own notes on it:\n${f.notes.slice(0, 4).map((n) => `- ${n.slice(0, 400)}`).join('\n')}` : ''
+      }\n\n`
+    : '';
   const out = await callMuse(
-    `${ctx.history.length ? `Conversation so far:\n${ctx.history.slice(-4).map((t) => `${t.role}: ${t.text.slice(0, 200)}`).join('\n')}\n\n` : ''}The user is studying and said: "${text.slice(0, 500)}"
+    `${focusBlock}${ctx.history.length ? `Conversation so far:\n${ctx.history.slice(-6).map((t) => `${t.role}: ${t.text.slice(0, 300)}`).join('\n')}\n\n` : ''}The user is studying and said: "${text.slice(0, 500)}"
 ${block ? `Their own notes and review cards on this (prefer these, and say "from your notes" when you use them):\n${block}\n` : ''}
 Explain it simply, like a friendly tutor talking to someone getting dressed or on a train: one plain-English idea, one everyday example, then one short question to check they've got it. At most 90 words. ${SPOKEN}
 Return ONLY JSON: {"answer": "..."}`,
@@ -307,6 +325,70 @@ Under 150 words. Return ONLY JSON: {"draft": "...", "spoken": "one sentence tell
   return { intent: 'form', topic: job?.job_title ?? null, draft: String(j.draft ?? '').trim(), text: String(j.spoken ?? 'Here is a draft. Check it reads like you before you paste it.') };
 }
 
+/** End of a day, local, as ISO: "tonight" / "today" / "tomorrow" / a date */
+function practiceDeadline(when: string | null | undefined): string | null {
+  if (!when) return null;
+  const d = new Date();
+  if (/tomorrow/i.test(when)) d.setDate(d.getDate() + 1);
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(when)) return new Date(`${when}T22:00`).toISOString();
+  else if (!/today|tonight|later|this (evening|afternoon)/i.test(when)) return null;
+  d.setHours(22, 0, 0, 0);
+  return d.toISOString();
+}
+
+/**
+ * "Make me a note on cold starts, I want to practise it tonight."
+ * Muse writes a short note in your words, picks the folder and subtopic it belongs in
+ * (one you already have when it fits), and practice goes on your week if you asked.
+ */
+async function note(text: string, ctx: CoachContext): Promise<Reply> {
+  const lib = (ctx.library ?? []).slice(0, 30);
+  const recent = ctx.history.slice(-6).map((t) => `${t.role === 'you' ? 'User' : 'Ropi'}: ${t.text.slice(0, 400)}`).join('\n');
+  let j: { title?: string; body?: string; folder?: string; subtopic?: string | null; practice?: { when?: string | null; minutes?: number } | null } = {};
+  try {
+    const out = await callMuse(
+      `The user asked Ropi, their study coach, to make a note. Write it for them to read later.
+They said: "${text.slice(0, 800)}"
+${recent ? `Recent conversation (the note may be about something just explained):\n${recent}\n` : ''}${ctx.focus ? `They are in the folder "${ctx.focus.folderName}"${ctx.focus.subtopic ? `, subtopic "${ctx.focus.subtopic}"` : ''}.\n` : ''}Their folders and subtopics:
+${lib.map((f) => `- ${f.name}${f.subs.length ? `: ${f.subs.slice(0, 12).join(', ')}` : ''}`).join('\n') || '(none yet)'}
+
+Write the note as 2 to 5 short lines a learner would want: the idea in plain words, a concrete example, and one thing to remember. No markdown symbols except "- " at the start of lines. Use only what they said and the conversation; don't invent facts beyond a standard textbook explanation.
+Pick the folder: an existing folder name if it fits, otherwise a short new one (2-4 words). Pick a subtopic if the note is about one specific concept (reuse an existing one when it matches).
+If they want to practise or review it at a time, set practice.when to "today", "tonight", "tomorrow" or a YYYY-MM-DD date, and minutes (default 15).
+Return ONLY JSON: {"title": "...", "body": "...", "folder": "...", "subtopic": "... or null", "practice": {"when": "...", "minutes": 15} or null}`,
+      { model: MUSE_MODELS.fast, reasoningEffort: 'low', json: true, maxTokens: 3000, timeoutMs: 30000 }
+    );
+    j = JSON.parse(out.match(/\{[\s\S]*\}/)?.[0] ?? out);
+  } catch {
+    // Muse unavailable: keep their words as the note
+  }
+  const body = String(j.body ?? '').trim() || text.replace(/^(please\s+)?(make|write|take|save|add|jot)( me)?( down)? (a )?(quick |short )?notes? (on|about|that)?\s*/i, '').trim() || text;
+  const wanted = String(j.folder ?? '').trim() || ctx.focus?.folderName || 'Notes';
+  const match = lib.find((f) => topicKey(f.name) === topicKey(wanted) || topicKey(f.topic) === topicKey(wanted));
+  const folder = match ? { key: match.key, name: match.name } : ctx.focus && topicKey(ctx.focus.folderName) === topicKey(wanted) ? { key: ctx.focus.folderKey, name: ctx.focus.folderName } : { key: topicKey(wanted), name: wanted };
+  const rawSub = typeof j.subtopic === 'string' && j.subtopic !== 'null' && j.subtopic.trim() ? j.subtopic.trim() : ctx.focus?.subtopic ?? null;
+  const subtopic = rawSub ? match?.subs.find((s) => topicKey(s) === topicKey(rawSub)) ?? rawSub : null;
+  const title = String(j.title ?? '').trim() || null;
+  await addTo(folder, subtopic, makeNote(body, title, 'ropi'));
+
+  const href = `/learn/topic/${encodeURIComponent(folder.key)}${subtopic ? `/${encodeURIComponent(topicKey(subtopic))}` : ''}`;
+  const deadline = practiceDeadline(j.practice?.when ?? (/\b(tonight|today|later today)\b/i.test(text) ? 'tonight' : /\btomorrow\b/i.test(text) ? 'tomorrow' : null));
+  const minutes = Math.min(60, Math.max(5, Math.round(Number(j.practice?.minutes) || 15)));
+  let practice: string | null = null;
+  if (deadline) {
+    ctx.addTask({ title: `Practise: ${subtopic ?? title ?? folder.name}`, duration: minutes, priority: 'P2', deadline, category: 'learning', tags: ['study'], href });
+    practice = `${minutes} minutes of practice ${/tomorrow/i.test(j.practice?.when ?? text) ? 'tomorrow' : 'today'}`;
+  }
+  const where = subtopic ? `${folder.name}, under ${subtopic}` : folder.name;
+  return {
+    intent: 'note',
+    topic: subtopic ?? folder.name,
+    note: { title: title ?? body.split('\n')[0].slice(0, 80), folder: folder.name, subtopic, href, practice },
+    text: `Saved a note in ${where}.${practice ? ` I've put ${practice} on your week, and Ropi will find the time.` : ''} Here it is: ${body.replace(/^- /gm, '').replace(/\n+/g, ' ')}`,
+    open: { label: 'Open the note', href },
+  };
+}
+
 async function chat(text: string, ctx: CoachContext): Promise<Reply> {
   const next = ctx.plan.upcoming[0];
   const out = await callMuse(
@@ -328,11 +410,15 @@ export async function respond(text: string, ctx: CoachContext): Promise<Reply> {
   // Right after Ropi read your day, "gym prep 30 minutes tomorrow" means "add it"
   const lastKind = ctx.history.slice().reverse().find((t) => t.role === 'ropi')?.kind ?? '';
   if ((r.intent === 'chat' || r.intent === 'plan') && /^(day|week|add):/.test(lastKind) && (parseQuickAdd(text)?.tokens.length ?? 0) > 0) r.intent = 'add';
-  const topic = r.topic ?? ctx.history.slice().reverse().find((t) => t.kind && t.role === 'ropi')?.kind?.split(':')[1] ?? null;
+  // In a folder or subtopic, a plain question is about that topic
+  if (ctx.focus && r.intent === 'chat') r.intent = 'explain';
+  const topic = r.topic ?? (ctx.focus ? ctx.focus.subtopic ?? ctx.focus.topic : null) ?? ctx.history.slice().reverse().find((t) => t.kind && t.role === 'ropi')?.kind?.split(':')[1] ?? null;
   try {
     switch (r.intent) {
       case 'explain':
-        return await explain(text, r.topic, ctx);
+        return await explain(text, r.topic ?? (ctx.focus ? ctx.focus.subtopic ?? ctx.focus.topic : null), ctx);
+      case 'note':
+        return await note(text, ctx);
       case 'news':
         return topic ? await news(topic, ctx) : { intent: 'news', topic: null, text: 'News on what? For example: latest news on project management.' };
       case 'podcast':

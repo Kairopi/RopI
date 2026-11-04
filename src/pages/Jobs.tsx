@@ -425,6 +425,19 @@ function JobRow({
           )}
 
           {score && <ATSScoreCard atsScore={score} />}
+          {/* Right under the score: tailor for this job (the next step once you know the gaps) */}
+          {fit != null && !tailor && !tailored && hasResume && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-accent/50 px-4 py-3">
+              <p className="text-[13px]">
+                <span className="font-medium">Tailor your resume for {job.company}.</span>{' '}
+                <span className="text-muted-foreground">Meta Muse rewrites it around this job’s terms, using only what’s already true in your resume. You check it before using it.</span>
+              </p>
+              <Button size="sm" disabled={busy === 'tailor'} onClick={doTailor}>
+                {busy === 'tailor' && <Loader2 className="animate-spin" />}
+                {busy === 'tailor' ? 'Tailoring' : 'Tailor my resume'}
+              </Button>
+            </div>
+          )}
           {!score && fit != null && job.match_reasons?.length ? (
             <div>
               <div className="eyebrow mb-1.5">What would raise your fit</div>
