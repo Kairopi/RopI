@@ -21,7 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AddJobDialog } from '@/components/jobs/AddJobDialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getUserJobs, type JobApplication } from '@/lib/jobs/job-service';
+import { getUserJobs, jobLogo, type JobApplication } from '@/lib/jobs/job-service';
+import { CompanyLogo } from '@/components/jobs/CompanyLogo';
 import { STAGES, stageOf, moveJobTo, type Stage } from '@/lib/jobs/progress';
 import { cn } from '@/lib/utils';
 
@@ -232,9 +233,12 @@ function JobCard({ job, onMove, onOpen }: { job: JobApplication; onMove: (job: J
       className={cn('group rounded-lg border bg-card p-3 shadow-[0_1px_2px_hsl(225_20%_8%/0.04)]', isDragging && 'z-10 opacity-80 shadow-float')}
     >
       <div className="flex items-start gap-2">
-        <button onClick={onOpen} className="min-w-0 flex-1 text-left">
-          <div className="truncate text-[13px] font-semibold">{job.company}</div>
-          <div className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">{job.job_title}</div>
+        <button onClick={onOpen} className="flex min-w-0 flex-1 items-start gap-2 text-left">
+          <CompanyLogo src={jobLogo(job)} company={job.company} size={28} className="rounded-md" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-semibold">{job.company}</span>
+            <span className="line-clamp-2 block text-[12px] leading-snug text-muted-foreground">{job.job_title}</span>
+          </span>
         </button>
         <button
           {...listeners}

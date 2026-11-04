@@ -12,6 +12,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Panel, setPanelOpen } from '@/components/Panel';
 import { AskPanel } from '@/components/AskPanel';
 import { NotesPanel } from '@/components/NotesPanel';
+import { FindResources } from '@/components/FindResources';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, ArrowRight, BookOpen, Brain, ChevronDown, ExternalLink, FileText, Loader2, MessageSquare, Mic, Plus, Trash2 } from '@/components/icons';

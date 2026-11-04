@@ -51,9 +51,12 @@ export async function subtopicRow(folder: { key: string; name: string }, subtopi
 }
 
 /** Add a note or link to a folder, or to one of its subtopics */
-export async function addTo(folder: { key: string; name: string }, subtopic: string | null, item: SavedLink): Promise<void> {
+export async function addTo(folder: { key: string; name: string }, subtopic: string | null, item: SavedLink | SavedLink[]): Promise<void> {
   const row = subtopic ? await subtopicRow(folder, subtopic) : await folderRow(folder);
-  await saveTopic({ match_key: row.match_key, parent_id: row.parent_id, name: row.name, links: [...(row.links ?? []), item] });
+  const have = row.links ?? [];
+  const add = (Array.isArray(item) ? item : [item]).filter((i) => i.kind === 'note' || !have.some((l) => l.url === i.url));
+  if (!add.length) return;
+  await saveTopic({ match_key: row.match_key, parent_id: row.parent_id, name: row.name, links: [...have, ...add] });
 }
 
 /** Remove (or replace) an item by its url */

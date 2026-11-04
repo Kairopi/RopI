@@ -27,6 +27,7 @@ import {
   Calendar,
   TrendingUp,
   CheckCircle,
+  XCircle,
   Clock,
   Loader2
 } from '@/components/icons';
@@ -55,6 +56,7 @@ export default function DailyReviews() {
   const [dueCards, setDueCards] = useState<ConceptCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [picked, setPicked] = useState<number | null>(null);
   const [reviewedToday, setReviewedToday] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -127,6 +129,7 @@ export default function DailyReviews() {
     setIntervals(null);
     setMemory(null);
     if (!currentCard) return;
+    setReviewStartTime(new Date()); // time on this card, from when it appears
     const now = new Date();
     previewRatings(currentCard, now)
       .then((p) => {
@@ -150,8 +153,18 @@ export default function DailyReviews() {
   
   const handleReveal = () => {
     setShowAnswer(true);
-    setReviewStartTime(new Date()); // Track time spent reviewing
   };
+
+  // Cards from quiz questions keep their choices: pick one first, then see if you were right
+  const choices = currentCard?.options && currentCard.options.length >= 2 && currentCard.correctAnswerIndex != null ? currentCard.options : null;
+  const pickChoice = (i: number) => {
+    if (showAnswer || picked !== null) return;
+    setPicked(i);
+    setShowAnswer(true);
+  };
+  const pickedRight = picked !== null && currentCard?.correctAnswerIndex === picked;
+  // What your pick says about recall: wrong means Again, right means Good (you can still choose)
+  const suggested: Rating | null = picked === null ? null : pickedRight ? Rating.Good : Rating.Again;
   
   const handleRating = async (rating: Rating) => {
     if (!currentCard || isReviewing) return;
@@ -216,7 +229,7 @@ export default function DailyReviews() {
       if (hasMore) {
         setCurrentIndex(prev => prev + 1);
         setShowAnswer(false);
-        setReviewStartTime(null);
+        setPicked(null);
       } else {
         // All done!
         const total = reviewedToday + 1;
@@ -254,6 +267,8 @@ export default function DailyReviews() {
       if (!showAnswer && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
         handleReveal();
+      } else if (!showAnswer && choices && /^[a-h]$/i.test(e.key) && e.key.toLowerCase().charCodeAt(0) - 97 < choices.length) {
+        pickChoice(e.key.toLowerCase().charCodeAt(0) - 97);
       } else if (showAnswer && ['1', '2', '3', '4'].includes(e.key)) {
         handleRating(Number(e.key) as Rating);
       }
@@ -376,6 +391,42 @@ export default function DailyReviews() {
                   )}
                 </div>
                 <h2 className="text-[21px] font-semibold leading-snug tracking-[-0.015em]">{currentCard.question}</h2>
+                {choices && (
+                  <div className="mt-5 grid gap-2" role="group" aria-label="Choose an answer">
+                    {choices.map((opt, i) => {
+                      const isRight = i === currentCard.correctAnswerIndex;
+                      const isPicked = i === picked;
+                      const tone = !showAnswer
+                        ? 'hover:border-primary/50 hover:bg-accent'
+                        : isRight
+                          ? 'border-success/50 bg-success/[0.07]'
+                          : isPicked
+                            ? 'border-destructive/50 bg-destructive/[0.06]'
+                            : 'opacity-60';
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => pickChoice(i)}
+                          disabled={showAnswer}
+                          aria-pressed={isPicked}
+                          className={`flex items-start gap-3 rounded-xl border bg-card px-3.5 py-3 text-left text-[14px] transition-colors disabled:cursor-default ${tone}`}
+                        >
+                          <span className="num mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold text-muted-foreground">
+                            {String.fromCharCode(65 + i)}
+                          </span>
+                          <span className="flex-1 leading-snug">{opt}</span>
+                          {showAnswer && isRight && <CheckCircle className="h-4 w-4 shrink-0 text-success" />}
+                          {showAnswer && isPicked && !isRight && <XCircle className="h-4 w-4 shrink-0 text-destructive" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {picked !== null && (
+                  <p className={`mt-3 text-[13px] font-medium ${pickedRight ? 'text-success' : 'text-destructive'}`}>
+                    {pickedRight ? 'Right. Rate how easily it came to you.' : 'Not this time. That’s why it came back: it will return sooner.'}
+                  </p>
+                )}
               </div>
 
               <AnimatePresence initial={false}>
@@ -400,9 +451,9 @@ export default function DailyReviews() {
 
               <div className="border-t p-4 sm:p-5">
                 {!showAnswer ? (
-                  <Button onClick={handleReveal} className="w-full" size="lg">
-                    Show Answer
-                    <kbd aria-hidden="true" className="num ml-1 rounded border border-primary-foreground/30 px-1.5 text-[10.5px] font-normal opacity-80">Space</kbd>
+                  <Button onClick={handleReveal} className="w-full" size="lg" variant={choices ? 'outline' : 'default'}>
+                    {choices ? 'I don’t know, show me' : 'Show answer'}
+                    <kbd aria-hidden="true" className="num ml-1 rounded border border-current/30 px-1.5 text-[10.5px] font-normal opacity-70">Space</kbd>
                   </Button>
                 ) : (
                   <div>
@@ -413,7 +464,9 @@ export default function DailyReviews() {
                           key={r.key}
                           onClick={() => handleRating(r.rating)}
                           disabled={isReviewing}
-                          className={`group flex flex-col items-start rounded-xl border bg-card px-3.5 py-3 text-left transition-colors disabled:opacity-50 ${r.hover}`}
+                          className={`group flex flex-col items-start rounded-xl border bg-card px-3.5 py-3 text-left transition-colors disabled:opacity-50 ${r.hover} ${
+                            suggested === r.rating ? 'ring-2 ring-primary/40 border-primary/40' : ''
+                          }`}
                         >
                           <span className="flex w-full items-center justify-between">
                             <span className="text-[14px] font-semibold">{r.label}</span>

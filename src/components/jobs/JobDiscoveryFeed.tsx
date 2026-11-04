@@ -13,8 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { fetchJobDescription } from '@/lib/jobs/jobseek-client';
 import { searchAllJobs, SOURCES, type JobPosting, type SourceId, type SourceResult } from '@/lib/jobs/sources';
-import { createJobApplication } from '@/lib/jobs/job-service';
+import { createJobApplication, rememberLogo } from '@/lib/jobs/job-service';
 import { cn } from '@/lib/utils';
+import { CompanyLogo } from './CompanyLogo';
 
 interface JobDiscoveryFeedProps {
   userId: string;
@@ -64,6 +65,8 @@ export function JobDiscoveryFeed({ userId, onJobAdded, savedUrls }: JobDiscovery
     try {
       const r = await searchAllJobs(query, location, modes);
       setPostings(interleave(r.postings));
+      // Jobs you saved before logos were kept pick theirs up from the same posting
+      for (const p of r.postings) if (p.logo && savedUrls?.has(p.url)) rememberLogo(p.url, p.company, p.logo);
       setSources(r.sources);
       if (!r.postings.length) setError('No jobs found. Try fewer words, another place, or turn on Remote.');
     } catch (e) {
@@ -87,6 +90,7 @@ export function JobDiscoveryFeed({ userId, onJobAdded, savedUrls }: JobDiscovery
         description: description ?? '',
         job_url: p.url,
         source: p.source,
+        company_logo: p.logo,
       });
       setAdded((s) => new Set(s).add(p.url));
       onJobAdded?.();
@@ -172,13 +176,7 @@ export function JobDiscoveryFeed({ userId, onJobAdded, savedUrls }: JobDiscovery
               const isSaved = added.has(p.url) || savedUrls?.has(p.url);
               return (
                 <li key={p.key} className="flex items-center gap-3 bg-card px-4 py-3">
-                  {p.logo ? (
-                    <img src={p.logo} alt="" className="h-8 w-8 shrink-0 rounded-md border bg-background object-contain" loading="lazy" referrerPolicy="no-referrer" />
-                  ) : (
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-muted text-[12px] font-semibold text-muted-foreground">
-                      {p.company.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
+                  <CompanyLogo src={p.logo} company={p.company} size={32} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13.5px] font-medium">{p.title}</div>
                     <div className="truncate text-[12px] text-muted-foreground">

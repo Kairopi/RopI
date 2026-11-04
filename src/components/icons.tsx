@@ -74,6 +74,10 @@ import {
   TrendUp,
   Trophy as PTrophy,
   UploadSimple,
+  SidebarSimple,
+  DownloadSimple,
+  IdentificationCard,
+  Globe as PGlobe,
   User as PUser,
   SpeakerHigh,
   SpeakerSlash,
@@ -167,6 +171,10 @@ export const SkipForward = make(PSkipForward, 'fill', 'SkipForward');
 export const Trash = make(PTrash, 'regular', 'Trash');
 export const Trash2 = make(PTrash, 'regular', 'Trash2');
 export const Upload = make(UploadSimple, 'regular', 'Upload');
+export const PanelLeft = make(SidebarSimple, 'regular', 'PanelLeft');
+export const Download = make(DownloadSimple, 'regular', 'Download');
+export const IdCard = make(IdentificationCard, 'duotone', 'IdCard');
+export const Globe = make(PGlobe, 'regular', 'Globe');
 export const X = make(PX, 'regular', 'X');
 
 // Spinner

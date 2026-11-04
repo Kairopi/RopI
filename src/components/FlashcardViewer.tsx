@@ -1,180 +1,168 @@
 /**
- * Flashcard Viewer Component
- * 
- * 3D flip animation with FSRS rating integration
- * Keyboard shortcuts: Space (flip), 1/2/3/4 (rate), Arrow keys (navigate)
+ * Flashcard viewer: flip a card, then say how well you knew it.
+ * The rating schedules the card (onRate). Keyboard: Space flips, 1-4 rate,
+ * arrows move between cards.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, RotateCw, Shuffle } from '@/components/icons';
+import { ChevronLeft, ChevronRight, RotateCw, Shuffle, Loader2 } from '@/components/icons';
 import type { FlashcardDB } from '@/lib/learning/study-materials-db';
 
 interface FlashcardViewerProps {
   flashcards: FlashcardDB[];
   onComplete?: () => void;
+  /** 0 = Again, 1 = Hard, 2 = Good, 3 = Easy */
   onRate?: (flashcardId: string, rating: 0 | 1 | 2 | 3) => Promise<void>;
 }
 
-export function FlashcardViewer({ 
-  flashcards, 
-  onComplete,
-  onRate 
-}: FlashcardViewerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const RATINGS = [
+  { label: 'Again', hint: 'Forgot it', tone: 'hover:border-destructive/40 hover:bg-destructive/[0.04]', bar: 'bg-destructive' },
+  { label: 'Hard', hint: 'Got there slowly', tone: 'hover:border-warning/50 hover:bg-warning/[0.06]', bar: 'bg-warning' },
+  { label: 'Good', hint: 'Knew it', tone: 'hover:border-success/40 hover:bg-success/[0.05]', bar: 'bg-success' },
+  { label: 'Easy', hint: 'Instantly', tone: 'hover:border-primary/40 hover:bg-accent', bar: 'bg-primary' },
+] as const;
+
+export function FlashcardViewer({ flashcards, onComplete, onRate }: FlashcardViewerProps) {
+  const [order, setOrder] = useState<number[]>(() => flashcards.map((_, i) => i));
+  const [pos, setPos] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [studiedCards, setStudiedCards] = useState<Set<number>>(new Set());
+  const [rated, setRated] = useState<Map<string, number>>(new Map());
   const [isRating, setIsRating] = useState(false);
-  
-  const currentCard = flashcards[currentIndex];
-  const progress = `${currentIndex + 1} / ${flashcards.length}`;
-  const hasStudiedCurrent = studiedCards.has(currentIndex);
-  
-  // Keyboard shortcuts
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Ignore if typing in input
-      if ((e.target as HTMLElement).tagName === 'INPUT') return;
-      
-      if (e.key === ' ') {
-        e.preventDefault();
-        handleFlip();
-      }
-      if (e.key === 'ArrowLeft') prev();
-      if (e.key === 'ArrowRight') next();
-      
-      // Rating shortcuts (1=Again, 2=Hard, 3=Good, 4=Easy)
-      if (isFlipped && !isRating && ['1', '2', '3', '4'].includes(e.key)) {
-        const rating = (parseInt(e.key) - 1) as 0 | 1 | 2 | 3;
-        handleRating(rating);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isFlipped, currentIndex, isRating]);
-  
-  const handleFlip = () => {
-    setIsFlipped(!isFlipped);
+    setOrder(flashcards.map((_, i) => i));
+    setPos(0);
+  }, [flashcards]);
+
+  const currentCard = flashcards[order[pos] ?? 0];
+  const ratedCount = rated.size;
+  const currentRating = currentCard ? rated.get(currentCard.id) : undefined;
+  const firstUnrated = useMemo(() => order.findIndex((i) => !rated.has(flashcards[i]?.id)), [order, rated, flashcards]);
+
+  const go = (to: number) => {
+    if (to < 0 || to >= order.length) return;
+    setPos(to);
+    setIsFlipped(false);
+    setError(null);
   };
-  
+
   const handleRating = async (rating: 0 | 1 | 2 | 3) => {
-    if (!onRate || isRating) return;
-    
+    if (!onRate || isRating || !currentCard) return;
     setIsRating(true);
-    
+    setError(null);
     try {
       await onRate(currentCard.id, rating);
-      
-      // Mark as studied
-      setStudiedCards(prev => new Set(prev).add(currentIndex));
-      
-      // Auto-advance to next card
+      const next = new Map(rated).set(currentCard.id, rating);
+      setRated(next);
       setTimeout(() => {
-        setIsFlipped(false);
         setIsRating(false);
-        
-        if (currentIndex < flashcards.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else {
-          // Session complete!
-          if (onComplete) onComplete();
+        const nextPos = order.findIndex((i, p) => p > pos && !next.has(flashcards[i].id));
+        const wrap = order.findIndex((i) => !next.has(flashcards[i].id));
+        if (nextPos !== -1) go(nextPos);
+        else if (wrap !== -1) go(wrap);
+        else {
+          setIsFlipped(false);
+          onComplete?.();
         }
-      }, 300);
-    } catch (error) {
-      console.error('Rating failed:', error);
+      }, 250);
+    } catch (e) {
+      console.error('Rating failed:', e);
+      setError('Couldn’t save that rating. Try again.');
       setIsRating(false);
     }
   };
-  
-  const next = () => {
-    if (currentIndex < flashcards.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setIsFlipped(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === ' ') {
+        e.preventDefault();
+        setIsFlipped((f) => !f);
+      }
+      if (e.key === 'ArrowLeft') go(pos - 1);
+      if (e.key === 'ArrowRight') go(pos + 1);
+      if (isFlipped && !isRating && ['1', '2', '3', '4'].includes(e.key)) void handleRating((Number(e.key) - 1) as 0 | 1 | 2 | 3);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const shuffle = () => {
+    const next = [...order];
+    for (let i = next.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [next[i], next[j]] = [next[j], next[i]];
     }
+    setOrder(next);
+    setPos(0);
+    setIsFlipped(false);
   };
-  
-  const prev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setIsFlipped(false);
-    }
-  };
-  
-  const shuffleCards = () => {
-    // TODO: Implement shuffle
-    console.log('Shuffle not yet implemented');
-  };
-  
+
   if (!currentCard) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        No flashcards available
-      </div>
-    );
+    return <div className="py-12 text-center text-muted-foreground">No flashcards available</div>;
   }
-  
+
   return (
-    <div className="flex flex-col items-center gap-6 py-8">
+    <div className="flex flex-col items-center gap-5 py-6">
       {/* Progress */}
-      <div className="flex items-center gap-4">
-        <div className="text-sm text-muted-foreground">
-          {progress}
+      <div className="w-full max-w-2xl">
+        <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-muted-foreground">
+          <span className="num">
+            Card {pos + 1} of {order.length}
+          </span>
+          {onRate && (
+            <span className="num">
+              {ratedCount} of {flashcards.length} rated
+              {firstUnrated !== -1 && firstUnrated !== pos && ratedCount > 0 && (
+                <button onClick={() => go(firstUnrated)} className="ml-2 font-medium text-primary hover:underline">
+                  Next unrated
+                </button>
+              )}
+            </span>
+          )}
         </div>
-        {hasStudiedCurrent && (
-          <Badge variant="secondary" className="text-xs">
-            Reviewed
-          </Badge>
-        )}
+        <div className="h-1 overflow-hidden rounded-full bg-border">
+          <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${(ratedCount / flashcards.length) * 100}%` }} />
+        </div>
       </div>
-      
+
       {/* Card */}
-      <div 
-        className="relative w-full max-w-2xl h-96 cursor-pointer"
+      <div
+        className="relative h-80 w-full max-w-2xl cursor-pointer sm:h-96"
         style={{ perspective: '1000px' }}
-        onClick={handleFlip}
+        onClick={() => setIsFlipped((f) => !f)}
+        role="button"
+        aria-label={isFlipped ? 'Show the question' : 'Show the answer'}
       >
         <motion.div
-          className="w-full h-full"
+          className="h-full w-full"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.6, ease: 'easeInOut' }}
+          transition={{ duration: 0.5, ease: 'easeInOut' }}
           style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* Front */}
-          <div
-            className="absolute inset-0 bg-card border-2 border-border rounded-xl p-8 flex flex-col items-center justify-center"
-            style={{ backfaceVisibility: 'hidden' }}
-          >
-            <div className="text-xs text-muted-foreground mb-4 uppercase tracking-wide">
-              Question
-            </div>
-            <p className="text-2xl text-center font-medium">
-              {currentCard.front}
-            </p>
-            <div className="mt-8 text-xs text-muted-foreground">
-              Click or press Space to flip
-            </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl border-2 border-border bg-card p-8" style={{ backfaceVisibility: 'hidden' }}>
+            <div className="mb-4 text-xs uppercase tracking-wide text-muted-foreground">Question</div>
+            <p className="max-h-full overflow-auto text-center text-xl font-medium sm:text-2xl">{currentCard.front}</p>
+            <div className="mt-8 text-xs text-muted-foreground">Think of the answer, then tap or press Space</div>
+            {currentRating !== undefined && (
+              <Badge variant="secondary" className="absolute right-4 top-4 text-xs">
+                Rated {RATINGS[currentRating].label}
+              </Badge>
+            )}
           </div>
-          
-          {/* Back */}
           <div
-            className="absolute inset-0 bg-primary/5 border-2 border-primary rounded-xl p-8 flex flex-col items-center justify-center"
-            style={{ 
-              backfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)'
-            }}
+            className="absolute inset-0 flex flex-col items-center justify-center rounded-xl border-2 border-primary bg-primary/5 p-8"
+            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
-            <div className="text-xs text-primary mb-4 uppercase tracking-wide font-medium">
-              Answer
-            </div>
-            <p className="text-xl text-center">
-              {currentCard.back}
-            </p>
-            
+            <div className="mb-4 text-xs font-medium uppercase tracking-wide text-primary">Answer</div>
+            <p className="max-h-full overflow-auto whitespace-pre-wrap text-center text-[16px] leading-relaxed sm:text-lg">{currentCard.back}</p>
             {currentCard.tags && currentCard.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-6">
+              <div className="mt-6 flex flex-wrap gap-2">
                 {currentCard.tags.map((tag: string) => (
                   <Badge key={tag} variant="outline" className="text-xs">
                     {tag}
@@ -185,103 +173,61 @@ export function FlashcardViewer({
           </div>
         </motion.div>
       </div>
-      
-      {/* Navigation Controls */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={prev}
-          disabled={currentIndex === 0}
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Previous
-        </Button>
-        
-        <Button onClick={handleFlip} size="sm">
-          <RotateCw className="w-4 h-4" />
-          Flip
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={next}
-          disabled={currentIndex === flashcards.length - 1}
-        >
-          Next
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={shuffleCards}
-        >
-          <Shuffle className="w-4 h-4" />
-        </Button>
-      </div>
-      
-      {/* FSRS Rating Buttons (shown after flip) */}
-      <AnimatePresence>
-        {isFlipped && onRate && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="flex gap-3"
-          >
-            <Button 
-              variant="outline"
-              size="sm"
-              className="border-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => handleRating(0)}
-              disabled={isRating}
-            >
-              Again (1)
-            </Button>
-            <Button 
-              variant="outline"
-              size="sm"
-              className="border-warning hover:bg-warning/10 hover:text-warning-ink"
-              onClick={() => handleRating(1)}
-              disabled={isRating}
-            >
-              Hard (2)
-            </Button>
-            <Button 
-              variant="outline"
-              size="sm"
-              className="border-success hover:bg-success/10 hover:text-success"
-              onClick={() => handleRating(2)}
-              disabled={isRating}
-            >
-              Good (3)
-            </Button>
-            <Button 
-              variant="outline"
-              size="sm"
-              className="border-primary hover:bg-primary/10 hover:text-primary"
-              onClick={() => handleRating(3)}
-              disabled={isRating}
-            >
-              Easy (4)
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* Study Progress Bar */}
+
+      {/* Rate (after flipping) */}
       <div className="w-full max-w-2xl">
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${(studiedCards.size / flashcards.length) * 100}%` }}
-          />
-        </div>
-        <div className="text-xs text-center text-muted-foreground mt-2">
-          {studiedCards.size} of {flashcards.length} reviewed
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          {isFlipped && onRate ? (
+            <motion.div key="rate" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <div className="mb-2 text-center text-[12.5px] text-muted-foreground">How well did you know it?</div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {RATINGS.map((r, i) => (
+                  <button
+                    key={r.label}
+                    onClick={() => handleRating(i as 0 | 1 | 2 | 3)}
+                    disabled={isRating}
+                    className={`flex flex-col items-start rounded-xl border bg-card px-3.5 py-2.5 text-left transition-colors disabled:opacity-50 ${r.tone} ${
+                      currentRating === i ? 'ring-2 ring-primary/40' : ''
+                    }`}
+                  >
+                    <span className="flex w-full items-center justify-between">
+                      <span className="text-[14px] font-semibold">{r.label}</span>
+                      <kbd aria-hidden="true" className="num rounded border px-1 text-[10.5px] text-muted-foreground">
+                        {i + 1}
+                      </kbd>
+                    </span>
+                    <span className="mt-0.5 text-[12px] text-muted-foreground">{r.hint}</span>
+                    <span className={`mt-2 h-1 w-6 rounded-full ${r.bar}`} />
+                  </button>
+                ))}
+              </div>
+              {isRating && (
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Scheduling
+                </p>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div key="nav" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => go(pos - 1)} disabled={pos === 0}>
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <Button onClick={() => setIsFlipped(true)} size="sm">
+                <RotateCw className="h-4 w-4" />
+                Show answer
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => go(pos + 1)} disabled={pos === order.length - 1}>
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={shuffle} aria-label="Shuffle the cards" title="Shuffle">
+                <Shuffle className="h-4 w-4" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {error && <p className="mt-2 text-center text-[12.5px] text-destructive">{error}</p>}
       </div>
     </div>
   );

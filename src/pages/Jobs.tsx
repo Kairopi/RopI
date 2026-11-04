@@ -34,9 +34,11 @@ import {
   updateJobStatus,
   updateJobDetails,
   deleteJobApplication,
+  jobLogo,
   type JobApplication,
   type Resume,
 } from '@/lib/jobs/job-service';
+import { CompanyLogo } from '@/components/jobs/CompanyLogo';
 import type { ATSScore } from '@/lib/jobs/ats-scorer';
 import { fetchJobDescription, postingIdFromUrl } from '@/lib/jobs/jobseek-client';
 import { moveJobTo, type Stage } from '@/lib/jobs/progress';
@@ -343,17 +345,22 @@ function JobRow({
     <li className="bg-card">
       <div className="flex items-center gap-3 px-4 py-3">
         <button onClick={onToggle} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-          <span
-            className={cn(
-              'num flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[13px] font-semibold',
-              fit == null ? 'bg-muted text-muted-foreground' : fit >= 80 ? 'bg-success/10 text-success' : fit >= 60 ? 'bg-warning/15 text-warning-ink' : 'bg-destructive/10 text-destructive'
-            )}
-            title={fit == null ? 'Not scored yet' : `Resume fit ${fit}%`}
-          >
-            {fit == null ? '–' : fit}
-          </span>
+          <CompanyLogo src={jobLogo(job)} company={job.company} size={40} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14px] font-medium">{job.job_title}</span>
+            <span className="flex items-center gap-2">
+              <span className="truncate text-[14px] font-medium">{job.job_title}</span>
+              {fit != null && (
+                <span
+                  className={cn(
+                    'num shrink-0 rounded-full px-1.5 py-px text-[11px] font-semibold',
+                    fit >= 80 ? 'bg-success/10 text-success' : fit >= 60 ? 'bg-warning/15 text-warning-ink' : 'bg-destructive/10 text-destructive'
+                  )}
+                  title={`Your resume matches ${fit}% of what this job asks for`}
+                >
+                  {fit}% fit
+                </span>
+              )}
+            </span>
             <span className="flex flex-wrap items-center gap-x-2.5 text-[12px] text-muted-foreground">
               <span className="truncate">{job.company}</span>
               {job.location && (

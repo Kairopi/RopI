@@ -53,6 +53,7 @@ export function SpareMinutes({ className, plannedAt }: { className?: string; pla
   const dueCards = useLoop((s) => s.dueCards);
   const weakSpots = useLoop((s) => s.weakSpots);
   const jobs = useLoop((s) => s.jobs);
+  const resources = useLoop((s) => s.resources);
   const loading = useLoop((s) => s.loadedFor === null);
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function SpareMinutes({ className, plannedAt }: { className?: string; pla
   }, [pref]);
 
   const plan = useMemo(() => {
-    const p = planSpareTime({ minutes: pref.minutes, mode: pref.mode, dueCards, weakSpots, jobs, goal });
+    const p = planSpareTime({ minutes: pref.minutes, mode: pref.mode, dueCards, weakSpots, jobs, goal, resources });
     // Also on today's plan? Say so: doing it now is a choice that frees that time, not a repeat
     const why = (id: string) =>
       id === 'reviews' && plannedAt?.reviews
@@ -69,7 +70,9 @@ export function SpareMinutes({ className, plannedAt }: { className?: string; pla
           ? `You practise it at ${plannedAt.weak}. This is a head start.`
           : null;
     return { ...p, steps: p.steps.map((s) => (why(s.id) ? { ...s, why: why(s.id)! } : s)) };
-  }, [pref, dueCards, weakSpots, jobs, goal, plannedAt]);
+  }, [pref, dueCards, weakSpots, jobs, goal, plannedAt, resources]);
+  // Saved resources open on their own site, in a new tab
+  const open = (href: string) => (/^https?:\/\//i.test(href) ? window.open(href, '_blank', 'noopener') : navigate(href));
 
   return (
     <section aria-labelledby="spare-title" className={cn('rounded-2xl border bg-card p-5 sm:p-6', className)}>
@@ -148,12 +151,12 @@ export function SpareMinutes({ className, plannedAt }: { className?: string; pla
                 <li key={s.id}>
                   <div className={cn('flex items-center gap-3 rounded-xl px-2 py-2.5', i > 0 && 'hover:bg-muted/50')}>
                     <span className={cn('w-12 shrink-0 text-[12.5px] tabular-nums', i === 0 ? 'font-semibold text-primary' : 'text-muted-foreground')}>{s.minutes} min</span>
-                    <button onClick={() => navigate(s.href)} className="min-w-0 flex-1 text-left">
+                    <button onClick={() => open(s.href)} className="min-w-0 flex-1 text-left">
                       <span className={cn('block truncate', i === 0 ? 'text-[15px] font-semibold' : 'text-[13.5px] font-medium')}>{s.title}</span>
                       <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">{s.why}</span>
                     </button>
                     {i === 0 ? (
-                      <Button size="sm" onClick={() => navigate(s.href)} className="shrink-0">
+                      <Button size="sm" onClick={() => open(s.href)} className="shrink-0">
                         Start
                         <ArrowRight />
                       </Button>

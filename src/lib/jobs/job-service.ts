@@ -16,6 +16,8 @@ export interface JobApplication {
   // Job details
   job_title: string;
   company: string;
+  /** Company logo URL from the job source (20261104c migration) */
+  company_logo?: string | null;
   location?: string;
   salary_min?: number;
   salary_max?: number;
@@ -75,24 +77,53 @@ export async function createJobApplication(
     source?: string;
     /** ISO timestamp the posting closes */
     deadline?: string;
+    company_logo?: string;
   }
 ): Promise<JobApplication> {
-  const { data, error } = await supabase
-    .from('job_applications')
-    .insert({
-      user_id: userId,
-      ...jobData,
-      status: 'discovered',
-    })
-    .select()
-    .single();
-  
+  const { company_logo, ...rest } = jobData;
+  if (company_logo) rememberLogo(jobData.job_url, jobData.company, company_logo);
+  const insert = (row: Record<string, unknown>) => supabase.from('job_applications').insert(row).select().single();
+  let { data, error } = await insert({ user_id: userId, ...rest, ...(company_logo ? { company_logo } : {}), status: 'discovered' });
+  // Before the company_logo column exists, save without it (the logo is kept in this browser)
+  if (error && company_logo && /company_logo/.test(error.message)) {
+    ({ data, error } = await insert({ user_id: userId, ...rest, status: 'discovered' }));
+  }
+
   if (error) {
     console.error('Failed to create job application:', error);
     throw new Error(`Failed to create job application: ${error.message}`);
   }
-  
+
   return data;
+}
+
+const LOGOS_KEY = 'ropi-job-logos-v1';
+const logoKey = (url: string | undefined, company: string) => (url || company).trim().toLowerCase();
+
+function readLogos(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(LOGOS_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function rememberLogo(url: string | undefined, company: string, logo: string) {
+  try {
+    const all = readLogos();
+    all[logoKey(url, company)] = logo;
+    all[`company:${company.trim().toLowerCase()}`] = logo;
+    localStorage.setItem(LOGOS_KEY, JSON.stringify(all));
+  } catch {
+    /* storage full or blocked: the initial letter shows instead */
+  }
+}
+
+/** The company logo for a saved job: from the database, or from when it was saved in this browser */
+export function jobLogo(job: Pick<JobApplication, 'company_logo' | 'job_url' | 'company'>): string | null {
+  if (job.company_logo) return job.company_logo;
+  const all = readLogos();
+  return all[logoKey(job.job_url, job.company)] ?? all[`company:${job.company.trim().toLowerCase()}`] ?? null;
 }
 
 /**

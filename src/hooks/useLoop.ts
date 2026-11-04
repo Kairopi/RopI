@@ -15,6 +15,8 @@ import { supabase } from '@/lib/supabase';
 import { getAllSkillLevels } from '@/lib/learning/skill-tracker';
 import { sourcesMissing, markSourcesMissing } from '@/lib/documents/sources';
 import type { Task } from '@/lib/scheduling/types';
+import { listTopics } from '@/lib/library/store';
+import type { SpareResource } from '@/lib/spare/plan';
 
 interface LoopJob {
   id: string;
@@ -33,6 +35,8 @@ interface LoopState {
   weakSpots: { topic: string; concept: string }[];
   jobs: LoopJob[];
   sources: { id: string; title: string; topic: string | null }[];
+  /** Saved videos, podcasts and reads that say how long they take */
+  resources: SpareResource[];
   refresh: (userId: string) => Promise<void>;
 }
 
@@ -45,20 +49,27 @@ export const useLoop = create<LoopState>()((set) => ({
   weakSpots: [],
   jobs: [],
   sources: [],
+  resources: [],
 
   refresh: async (userId) => {
     if (!userId) return;
     set({ loading: true });
     try {
       const nowIso = new Date().toISOString();
-      const [cards, skills, jobs, sources] = await Promise.all([
+      const [cards, skills, jobs, sources, topics] = await Promise.all([
         supabase.from('concept_cards').select('id', { count: 'exact', head: true }).eq('user_id', userId).lte('due_date', nowIso),
         getAllSkillLevels(userId).catch(() => []),
         supabase.from('job_applications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(30),
         sourcesMissing
           ? Promise.resolve({ data: [], error: null })
           : supabase.from('sources').select('id, title, topic').eq('user_id', userId).limit(50).then((r) => (markSourcesMissing(r.error), r)),
+        listTopics().catch(() => []),
       ]);
+      const resources: SpareResource[] = topics.flatMap((t) =>
+        (t.links ?? [])
+          .filter((l) => l.kind !== 'note' && typeof l.minutes === 'number' && l.minutes > 0)
+          .map((l) => ({ title: l.title, url: l.url, kind: l.kind as SpareResource['kind'], minutes: l.minutes!, topic: t.name }))
+      );
       set({
         loadedFor: userId,
         loading: false,
@@ -66,6 +77,7 @@ export const useLoop = create<LoopState>()((set) => ({
         weakSpots: skills.flatMap((s) => s.weakSpots.slice(0, 1).map((concept) => ({ topic: s.topic, concept }))).slice(0, 2),
         jobs: (jobs.data ?? []) as LoopJob[],
         sources: (sources.data ?? []) as LoopState['sources'],
+        resources,
       });
     } catch (error) {
       console.warn('Loop refresh failed:', error);

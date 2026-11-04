@@ -11,6 +11,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Panel } from '@/components/Panel';
 import { AskPanel } from '@/components/AskPanel';
 import { NotesPanel } from '@/components/NotesPanel';
+import { FindResources } from '@/components/FindResources';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -236,7 +237,19 @@ Return ONLY JSON: {"note": "..."}`,
             )}
           </Panel>
 
-          <Panel id="sub-links" title="Resources" meta={s.links.length ? String(s.links.length) : undefined} summary={s.links.map((l) => l.title).join(' · ') || 'Links, videos, a project repo'}>
+          <Panel id="sub-links" title="Resources" meta={s.links.length ? String(s.links.length) : undefined} summary={s.links.map((l) => l.title).join(' · ') || 'Free videos, docs, courses and podcasts'}>
+            <div className="mb-3">
+              <FindResources
+                subtopic={s.name}
+                folder={folder.name}
+                saved={s.links}
+                autoStart={s.links.length === 0}
+                onSave={async (links) => {
+                  await addTo(here, s.name, links);
+                  await load();
+                }}
+              />
+            </div>
             {s.links.length > 0 && (
               <ul className="mb-3 divide-y rounded-xl border">
                 {[...s.links].reverse().map((l) => (
@@ -245,7 +258,9 @@ Return ONLY JSON: {"note": "..."}`,
                       <span className="truncate">{l.title}</span>
                       <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                     </a>
-                    <span className="shrink-0 text-[11.5px] text-muted-foreground">{l.kind} · {when(l.added_at)}</span>
+                    <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                      {[l.kind === 'course' ? 'free course' : l.kind, l.minutes ? `${l.minutes} min` : null, l.added_by === 'ropi' ? 'found by Ropi' : when(l.added_at)].filter(Boolean).join(' · ')}
+                    </span>
                     <button aria-label={`Remove ${l.title}`} onClick={() => updateIn(here, s.name, l.url, null).then(load)} className="text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

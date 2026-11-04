@@ -12,8 +12,12 @@ import { generateId } from '@/lib/scheduling/utils';
 export interface SavedLink {
   title: string;
   url: string;
-  kind: 'article' | 'podcast' | 'video' | 'note';
+  kind: 'article' | 'podcast' | 'video' | 'note' | 'course';
   note?: string;
+  /** About how long it takes (found resources) */
+  minutes?: number;
+  /** One line on why it's worth it (found resources) */
+  why?: string;
   added_at: string;
   added_by: 'you' | 'ropi';
 }

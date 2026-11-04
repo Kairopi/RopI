@@ -15,7 +15,7 @@
 export type SpareMode = 'screen' | 'audio';
 export const SPARE_OPTIONS = [2, 5, 10, 20] as const;
 
-export type SpareKind = 'reviews' | 'explain' | 'quiz' | 'voice-quiz' | 'news' | 'podcast' | 'apply';
+export type SpareKind = 'reviews' | 'explain' | 'quiz' | 'voice-quiz' | 'news' | 'podcast' | 'apply' | 'resource';
 
 export interface SpareStep {
   id: string;
@@ -43,8 +43,28 @@ export interface SpareInput {
   weakSpots: { topic: string; concept: string }[];
   jobs: { id: string; company: string; job_title: string; status: string; deadline?: string | null }[];
   goal: string | null;
+  /** Free videos, podcasts and reads you saved, with how long they take */
+  resources?: SpareResource[];
   now?: Date;
 }
+
+export interface SpareResource {
+  title: string;
+  url: string;
+  kind: 'video' | 'podcast' | 'article' | 'course';
+  minutes: number;
+  topic: string;
+}
+
+/** The longest saved resource that still fits, for this mode (audio: podcasts only) */
+function bestResource(all: SpareResource[] | undefined, left: number, mode: SpareMode, topic: string | null): SpareResource | null {
+  const fits = (all ?? []).filter((r) => r.minutes >= 1 && r.minutes <= left && (mode === 'audio' ? r.kind === 'podcast' : true));
+  if (!fits.length) return null;
+  const onTopic = topic ? fits.filter((r) => r.topic.toLowerCase() === topic.toLowerCase()) : [];
+  return (onTopic.length ? onTopic : fits).sort((a, b) => b.minutes - a.minutes)[0];
+}
+
+const RESOURCE_VERB = { video: 'Watch', podcast: 'Listen', article: 'Read', course: 'Start' } as const;
 
 const OPEN_JOB = new Set(['discovered', 'scored', 'tailored', 'reviewed', 'approved']);
 const SECONDS_PER_CARD = 20;
@@ -143,7 +163,10 @@ export function planSpareTime(input: SpareInput): SparePlan {
         say: `start your ${closing.j.company} application, it closes ${day}`,
       });
     }
-    // 4. Fill what's left with a short brief
+    // 4. Something you saved that fits the time left
+    const res = bestResource(input.resources, left, 'screen', topic);
+    if (res) add(resourceStep(res));
+    // 5. Fill what's left with a short brief
     if (topic && left >= 2)
       add({
         id: 'news',
@@ -180,7 +203,10 @@ export function planSpareTime(input: SpareInput): SparePlan {
           : '/voice-quiz?quiz=quiz-1&start=1',
         say: `a voice quiz on ${weak?.concept ?? topic ?? 'AWS Lambda'}`,
       });
-    if (topic && left >= 10)
+    // A podcast episode you saved that fits beats searching for one
+    const pod = bestResource(input.resources, left, 'audio', topic);
+    if (pod) add(resourceStep(pod));
+    if (topic && left >= 10 && !pod)
       add({
         id: 'podcast',
         kind: 'podcast',
@@ -215,6 +241,19 @@ export function planSpareTime(input: SpareInput): SparePlan {
     });
 
   return { minutes: budget, mode: input.mode, steps, used: budget - left };
+}
+
+function resourceStep(r: SpareResource): SpareStep {
+  const verb = RESOURCE_VERB[r.kind];
+  return {
+    id: `res-${r.url}`,
+    kind: 'resource',
+    title: `${verb}: ${r.title}`,
+    minutes: r.minutes,
+    why: `You saved it under ${r.topic}. It takes about ${r.minutes} min, so it fits.`,
+    href: r.url,
+    say: `${verb.toLowerCase()} "${r.title}", which you saved, about ${r.minutes} minutes`,
+  };
 }
 
 // ---------- reading it from what someone says ----------

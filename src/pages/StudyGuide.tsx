@@ -7,7 +7,9 @@
  * 3. Quiz - a fresh Muse quiz on the guide's topic
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Rating, createConceptCard, getCardsByTopic, reviewCardComplete, saveCardToDatabase, type ConceptCard } from '@/lib/learning/spaced-repetition';
+import { useLoop } from '@/hooks/useLoop';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { useUserId } from '../contexts/AuthContext';
@@ -68,9 +70,29 @@ export default function StudyGuide() {
     }
   };
   
-  const handleFlashcardsComplete = () => {
-    console.log('🎉 Flashcard session complete!');
-    // Could show confetti or navigate somewhere
+  const [cardsDone, setCardsDone] = useState(false);
+  const handleFlashcardsComplete = () => setCardsDone(true);
+
+  // Rating a card here schedules it in daily reviews (the same review card, matched by its question)
+  const reviewCards = useRef<Map<string, ConceptCard> | null>(null);
+  const handleRate = async (flashcardId: string, rating: 0 | 1 | 2 | 3) => {
+    if (!guide) return;
+    const fc = guide.flashcards?.find((f) => f.id === flashcardId);
+    if (!fc) return;
+    const topic = String(guide.topic || guide.title);
+    if (!reviewCards.current) {
+      const all = await getCardsByTopic(userId, topic).catch(() => [] as ConceptCard[]);
+      reviewCards.current = new Map(all.map((c) => [c.question.trim(), c]));
+    }
+    let card = reviewCards.current.get(fc.front.trim());
+    if (!card) {
+      const fresh = await createConceptCard(topic, fc.front, fc.back);
+      fresh.sourceLesson = guide.title;
+      card = (await saveCardToDatabase(fresh, userId)).card;
+    }
+    const r = await reviewCardComplete(card, (rating + 1) as Rating, userId);
+    reviewCards.current.set(fc.front.trim(), { ...card, ...r.updatedCard } as ConceptCard);
+    useLoop.setState({ loadedFor: null });
   };
   
   const handleDelete = async () => {
@@ -192,14 +214,23 @@ export default function StudyGuide() {
         <TabsContent value="flashcards">
           {flashcards.length > 0 ? (
             <>
-              <p className="mb-4 text-[13px] text-muted-foreground">
-                Flip through them here. Spaced practice happens in{' '}
+              <p className="mb-2 text-[13px] text-muted-foreground">
+                Flip a card, then say how well you knew it. Your answer decides when it comes back in{' '}
                 <button onClick={() => navigate('/reviews')} className="font-medium text-primary hover:underline">
                   Daily reviews
                 </button>
-                , where each card comes back right before you'd forget it.
+                .
               </p>
-              <FlashcardViewer flashcards={flashcards} onComplete={handleFlashcardsComplete} />
+              {cardsDone && (
+                <div className="mb-2 flex flex-wrap items-center gap-3 rounded-xl border border-success/25 bg-success/[0.06] px-4 py-3 text-[13px]">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <span className="flex-1">All {flashcards.length} cards done. Each one is scheduled for right before you’d forget it.</span>
+                  <Button size="sm" variant="outline" onClick={() => setActiveTab('quiz')}>
+                    Test yourself
+                  </Button>
+                </div>
+              )}
+              <FlashcardViewer flashcards={flashcards} onComplete={handleFlashcardsComplete} onRate={handleRate} />
             </>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
