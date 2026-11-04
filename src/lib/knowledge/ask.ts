@@ -73,7 +73,7 @@ export function overlap(query: string[], text: string): number {
 const STRUGGLE = /\b(struggl|weak|wrong|miss|bad at|hard|difficult|gap|forget|forgot)/i;
 const PLAN = /\b(tonight|today|tomorrow|week|plan|schedule|next|should i|do now|time)\b/i;
 
-async function retrieve(question: string, plan: PlanContext | null): Promise<Evidence[]> {
+export async function retrieve(question: string, plan: PlanContext | null): Promise<Evidence[]> {
   const q = tokens(question);
   const wantsStruggles = STRUGGLE.test(question);
   const wantsPlan = PLAN.test(question);

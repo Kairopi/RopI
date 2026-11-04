@@ -78,7 +78,9 @@ function AddForm({ date, minute, onDone }: { date: Date; minute?: number; onDone
   const [from, setFrom] = useState(toHHMM(start0));
   const [to, setTo] = useState(toHHMM(Math.min(start0 + 60, 23 * 60 + 59)));
   const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => inputRef.current?.focus(), [type]);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [type]);
 
   const dayName = new Date(`${day}T12:00`).toLocaleDateString('en-US', { weekday: 'long' });
   const isToday = day === formatDate(new Date());

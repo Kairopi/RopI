@@ -38,6 +38,8 @@ export interface VoiceQuizCompletion {
 interface VoiceQuizProps {
   quiz: Quiz;
   onComplete: (result: VoiceQuizCompletion) => void;
+  /** Start reading straight away (when the quiz was asked for by voice, hands are busy) */
+  autoStart?: boolean;
 }
 
 type QuizState = 'ready' | 'idle' | 'speaking' | 'listening' | 'confirming' | 'feedback' | 'paused';
@@ -48,7 +50,7 @@ const MAX_RETRIES = 2;
 const LOW_CONFIDENCE = 0.55;
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function VoiceQuiz({ quiz, onComplete }: VoiceQuizProps) {
+export function VoiceQuiz({ quiz, onComplete, autoStart = false }: VoiceQuizProps) {
   const support = speechManager.getSupport();
   const questions = quiz.questions;
 
@@ -249,6 +251,16 @@ export function VoiceQuiz({ quiz, onComplete }: VoiceQuizProps) {
     startedAt.current = Date.now();
     void presentQuestion(0, true);
   }
+
+  // Asked for by voice: begin without waiting for a click
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStart && !autoStarted.current && state === 'ready') {
+      autoStarted.current = true;
+      start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
 
   function resume() {
     void presentQuestion(index);

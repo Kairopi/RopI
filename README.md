@@ -8,12 +8,13 @@ You tell Ropi when you're free and what you need to do. It places each task in y
 
 | Page | What it's for |
 |---|---|
-| **Today** | What to do next and why. Your week on a calendar with dates: click empty time to add something to do or busy time, click a block to start it or mark it done. Check-ins after a planned block ends ("Done, took 30 min"). Last 7 days. |
+| **Today** | What to do next and why. Your week on a 24-hour calendar with dates: click empty time to add something to do or busy time, click a block to start it or mark it done. Check-ins after a planned block ends ("Done, took 30 min"). Last 7 days. |
+| **Talk** | Hands-free, for small gaps in the day. Say "I'm lost, what does a project charter mean?", "quiz me", "latest news on PMP", "a podcast for my commute", "remind me to read chapter 4 tomorrow", "find product manager jobs in London", or "help me answer this form question". Ropi answers out loud in the voice you pick, keeps listening until you say stop, and saves every conversation with the time of each message. |
 | **LifeShift** | Say or type what changed. Meta Muse turns the sentence into a constraint, the scheduler replans, moved blocks travel to their new slot, and anything that no longer fits gets concrete fixes ("Do 135 min instead", "Skip it this week"). |
-| **Learn** | Quizzes that score each concept separately. Missed questions become FSRS review cards. Meta Muse writes a short lesson on your weakest concept. Upload a PDF or DOCX and get a quiz where every answer quotes the exact line it came from. Voice quizzes. |
-| **Jobs** | Search real openings from company career pages (Job Seek). Saving a job also fetches its full description. Score your resume against it, tailor the resume with Meta Muse, approve it, then apply yourself. A Board view shows every job by stage. |
+| **Learn** | A folder for each topic you study, which you can rename and add subtopics to. Each folder holds its documents, quizzes (dated), review cards, conversations with Ropi, and links you or Ropi saved. Quizzes score each concept separately. Missed questions become FSRS review cards. Meta Muse writes a short lesson on your weakest concept. Upload a PDF or DOCX and get a quiz where every answer quotes the exact line it came from. Voice quizzes. |
+| **Jobs** | One search across five job sources: Job Seek (company career pages), Remotive, Remote OK, Jobicy and Arbeitnow. Saving a job keeps its full description. Score your resume against it, tailor the resume with Meta Muse, approve it, then apply yourself on the source's site. A Board view shows every job by stage. |
 | **Tasks** | Everything on your plate this week, what's at risk, and how your real times compare with your estimates. |
-| **History** | Everything you did, day by day, with how Ropi knows: "Recorded by Ropi" or "You reported". Entries can't be edited or deleted. |
+| **History** | Everything you did, day by day: quizzes, reviews, replans, applications and conversations. A 5-week calendar at the top lets you jump to any day. Each entry says how Ropi knows: "Recorded by Ropi" or "You reported". Entries can't be edited or deleted. |
 | **Ask Ropi** (Ctrl/Cmd + K) | Questions about your own week and progress ("What have I been getting wrong?"). Answers cite your quiz history, cards, notes and plan. |
 
 ## Honesty rules
@@ -34,6 +35,8 @@ All calls go to the Meta Model API's OpenAI-compatible chat completions endpoint
 - reading your free time and LifeShift sentences into structured data (`parse-availability.ts`, `parse-constraint.ts`)
 - writing quizzes on any topic and from your documents (`topic-quiz.ts`, `source-quiz.ts`)
 - the lesson on your weakest concept (`adaptive-lessons.ts`)
+- Talk: working out what you asked for, explanations, coaching replies and form-answer drafts (`coach/brain.ts`)
+- latest news, through Meta search grounding: the Responses API with the `web_search` tool. Answers are cited, and the source links are shown (`callMuseWithWebSearch` in `api/muse.ts`)
 - summaries and tags for uploaded documents (`sources.ts`)
 - Ask Ropi answers (`knowledge/ask.ts`)
 - resume tailoring and interview practice (`resume-tailor.ts`, `interview-coach.ts`)
@@ -67,7 +70,7 @@ npm run dev            # http://localhost:5173
 
 Database setup:
 1. In the Supabase SQL editor, run `supabase-schema.sql`.
-2. Run each file in `supabase-migrations/` in filename order. Each one is safe to re-run.
+2. Run each file in `supabase-migrations/` in filename order. Each one is safe to re-run. `20261104b_library.sql` adds topic folders and conversations. Until it runs, those are kept in the browser instead.
 3. Turn on anonymous sign-ins (Authentication > Providers). Ropi signs every visitor in anonymously, so row-level security (`auth.uid() = user_id`) works without email confirmation.
 
 These steps were applied to the live hackathon project. Running the whole sequence on a brand-new project hasn't been tested.
@@ -95,7 +98,8 @@ These test scripts live in `.tmp-check/`, which is not committed yet.
 - **Your week (free time, tasks, busy time) is saved in this browser** (localStorage). Quizzes, cards, jobs, documents and History are in Supabase. There's no cross-device sync or email login yet.
 - **Nothing runs in the background.** "Last 7 days" and the plan are worked out when you open the app, and there are no notifications.
 - **Job descriptions are fetched automatically only for Job Seek listings.** For a job from elsewhere, you paste the description.
-- **Voice answers need Chrome, Edge or Safari**, and you can't interrupt Ropi while it reads.
+- **Voice needs Chrome, Edge or Safari.** You stop Ropi by tapping, not by talking over it (no barge-in). Ropi's voice is the browser's own; you pick one of the voices installed on your device.
+- **Talk never submits applications or fills in forms for you.** It drafts answers for you to check and paste.
 
 ## Credits
 

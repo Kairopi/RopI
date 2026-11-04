@@ -69,7 +69,11 @@ await step('real search on Job Seek and save one', async () => {
   await page.getByLabel('Job title or keywords').fill('Product Manager');
   await page.getByLabel('Location').fill('London');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByText(/Showing \d+ of [\d,]+ companies hiring/).waitFor({ timeout: 30000 });
+  await page.getByRole('group', { name: 'Filter by source' }).waitFor({ timeout: 30000 });
+  const counts = (await page.getByRole('group', { name: 'Filter by source' }).innerText()).replace(/\s+/g, ' ');
+  console.log('      sources: ' + counts);
+  const answered = (counts.match(/(Job Seek|Remotive|Remote OK|Jobicy|Arbeitnow) \d+/g) ?? []).filter((s) => !/ 0$/.test(s));
+  if (answered.length < 2) throw new Error('fewer than 2 sources returned results: ' + counts);
   const first = page.locator('[data-panel="jobs-find"] li').first();
   savedTitle = (await first.locator('.font-medium').first().innerText()).trim();
   console.log('      ' + (await first.innerText()).replace(/\s+/g, ' ').slice(0, 120));

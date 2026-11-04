@@ -12,6 +12,7 @@ import { useUserId } from '../contexts/AuthContext';
 import { MuseApiStatus } from '../components/MuseApiStatus';
 import { PageHeader, SectionTitle } from '../components/PageHeader';
 import { Panel } from '@/components/Panel';
+import { TopicFolders } from '@/components/TopicFolders';
 import { DocumentUpload, type ParsedDocument } from '../components/documents/DocumentUpload';
 import { listSources, saveSource, SourcesUnavailableError, type Source } from '@/lib/documents/sources';
 import { Card } from '@/components/ui/card';
@@ -307,6 +308,8 @@ export default function Learning() {
         <Ledger label="Streak" value={String(stats.streakDays)} unit={stats.streakDays === 1 ? ' day' : ' days'} sub="in a row" />
       </Card>
 
+      <TopicFolders userId={userId} />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         {/* Quizzes */}
         <Panel
@@ -397,52 +400,9 @@ export default function Learning() {
           )}
         </Panel>
 
-        {/* Topics */}
-        <Panel
-          id="learn-topics"
-          title="Topics"
-          meta={stats.skills.length ? `${stats.skills.length}` : undefined}
-          summary={stats.skills.length ? stats.skills.map((s) => `${s.topic} ${s.confidence}%`).join(' · ') : 'No topics yet'}
-        >
-          {stats.skills.length === 0 ? (
-            <p className="rounded-xl border border-dashed p-5 text-[13px] text-muted-foreground">
-              Take a quiz to start tracking a topic. Ropi scores every concept separately.
-            </p>
-          ) : (
-            <div className="space-y-1">
-              {stats.skills.map((skill) => (
-                <button
-                  key={skill.topic}
-                  className="w-full rounded-lg px-3 py-3 text-left transition-colors hover:bg-muted/60"
-                  onClick={() => navigate(quizPathFor(skill.topic))}
-                >
-                  <div className="flex items-baseline justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="truncate text-[14px] font-medium">{skill.topic}</div>
-                      <div className="truncate text-[12px] text-muted-foreground">
-                        {skill.quizzesTaken} quiz{skill.quizzesTaken !== 1 ? 'zes' : ''}
-                        {skill.weakSpots.length > 0 ? ` · weak: ${skill.weakSpots.join(', ')}` : ' · no weak spots'}
-                      </div>
-                    </div>
-                    <span className="font-display text-[22px] font-semibold tabular-nums tracking-[-0.03em]">
-                      {skill.confidence}
-                      <span className="text-[13px] text-muted-foreground">%</span>
-                    </span>
-                  </div>
-                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full ${skill.confidence >= 70 ? 'bg-primary' : 'bg-warning'}`}
-                      style={{ width: `${skill.confidence}%` }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </Panel>
-
         {/* Recent quizzes */}
         <Panel
+          className="lg:col-span-2"
           id="learn-recent"
           title="Recent quizzes"
           summary={stats.recentAttempts.length ? `${stats.recentAttempts.length} recent · last ${stats.recentAttempts[0].score}%` : 'None yet'}
@@ -486,6 +446,7 @@ export default function Learning() {
       </div>
 
       {/* Make your own */}
+      <span id="documents" className="block scroll-mt-6" />
       <Panel
         id="learn-make"
         variant="bare"

@@ -19,7 +19,8 @@ const step = async (name, fn) => {
     console.log(`PASS  ${name} (${Date.now() - t}ms)`);
   } catch (e) {
     fail++;
-    console.log(`FAIL  ${name}: ${String(e.message).split('\n')[0]}`);
+    console.log(`FAIL  ${name}: ${String(e.message).split('\n').slice(0, 4).join(' | ')}`);
+    await page.screenshot({ path: path.join(OUT, `c-fail-${pass + fail}.png`) }).catch(() => undefined);
   }
 };
 const pad = (n) => String(n).padStart(2, '0');
@@ -78,9 +79,12 @@ await step('click empty time to add a task for that day', async () => {
   const last = new Date(Date.now() + 6 * 86_400_000);
   const col = page.locator(`[data-day="${ymd(last)}"]`).first();
   const box = await col.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + 8);
+  // The day scrolls inside the calendar frame: click near the top of what's visible
+  const frame = await weekPanel().locator('[data-calendar-scroll]').boundingBox();
+  const y = frame.y + 20;
+  await page.mouse.move(box.x + box.width / 2, y);
   await page.waitForTimeout(150);
-  await page.mouse.click(box.x + box.width / 2, box.y + 8);
+  await page.mouse.click(box.x + box.width / 2, y);
   const dialog = page.getByRole('dialog');
   const weekday = last.toLocaleDateString('en-US', { weekday: 'long' });
   await dialog.getByRole('heading', { name: `Add to ${weekday}` }).waitFor();

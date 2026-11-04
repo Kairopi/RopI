@@ -388,3 +388,63 @@ export async function getMuseStatus(): Promise<{
     };
   }
 }
+
+/**
+ * Search grounding: Meta Model API Responses endpoint with the built-in
+ * web_search tool (https://dev.meta.ai/docs/search-grounding). The model
+ * searches the live web and returns text plus url_citation annotations.
+ * Not available on chat completions. Checked live 2026-11-04 (~6 s, CORS *).
+ */
+export async function callMuseWithWebSearch(
+  input: string,
+  options: { model?: string; timeoutMs?: number; contextSize?: 'low' | 'medium' | 'high' } = {}
+): Promise<{ text: string; citations: { title: string; url: string }[]; searched: boolean }> {
+  if (!MUSE_API_KEY) throw new Error('Meta Muse API key not configured. Please set VITE_MUSE_API_KEY in .env');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 45000);
+  try {
+    const res = await fetch(`${MUSE_API_BASE_URL}/responses`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MUSE_API_KEY}` },
+      body: JSON.stringify({
+        model: options.model ?? MUSE_MODELS.fast,
+        input,
+        tools: [{ type: 'web_search', search_context_size: options.contextSize ?? 'low' }],
+        // The raw hits, so there are sources to show even when the model adds no inline citations
+        include: ['web_search_call.results'],
+        reasoning: { effort: 'low' },
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(`Muse API error ${res.status}: ${data?.error?.message ?? res.statusText}`);
+
+    let searched = false;
+    const texts: string[] = [];
+    const citations = new Map<string, string>();
+    const hits = new Map<string, string>();
+    for (const item of data?.output ?? []) {
+      if (item.type === 'web_search_call') {
+        searched = true;
+        for (const r of item.results ?? []) if (r.url) hits.set(r.url, r.title || r.url);
+      }
+      if (item.type !== 'message') continue;
+      for (const block of item.content ?? []) {
+        if (block.type !== 'output_text') continue;
+        texts.push(String(block.text ?? ''));
+        for (const a of block.annotations ?? []) if (a.type === 'url_citation' && a.url) citations.set(a.url, a.title || a.url);
+      }
+    }
+    // The model sometimes narrates first ("I'll search for..."): keep the last block, the answer
+    const text = (texts.filter((t) => t.trim()).pop() ?? '').trim();
+    if (!text) throw new Error('Muse returned an empty answer.');
+    // Cited sources first; if none were cited inline, the pages the search actually read
+    const sources = citations.size ? citations : hits;
+    return { text, citations: [...sources].map(([url, title]) => ({ url, title })), searched };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('Web search timed out');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}

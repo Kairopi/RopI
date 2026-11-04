@@ -215,7 +215,7 @@ export default function Jobs() {
         )}
       </Panel>
 
-      <Panel id="jobs-find" className="mt-6" title="Find jobs" meta="From company career pages, via Job Seek" summary="Search roles by title and place">
+      <Panel id="jobs-find" className="mt-6" title="Find jobs" meta="5 job sources, one search" summary="Search roles by title and place across 5 job sources">
         <JobDiscoveryFeed userId={userId} onJobAdded={load} savedUrls={savedUrls} />
       </Panel>
 

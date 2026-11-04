@@ -11,7 +11,7 @@
  * evening slots stay readable instead of being lost in a 24-hour grid.
  */
 
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Plus } from '@/components/icons';
 import type { Plan } from '@/lib/scheduling/plan';
@@ -46,7 +46,6 @@ export function weekRangeLabel(days = DAYS) {
 }
 
 const DAYS = 7;
-const GAP = 10; // px gap drawn between non-adjacent visible hours
 
 const minutesOfDay = (iso: string) => {
   const d = new Date(iso);
@@ -74,8 +73,9 @@ export default function WeekCanvas({
   onAdd,
 }: WeekCanvasProps) {
   const reduceMotion = useReducedMotion();
-  const hourHeight = compact ? 64 : 136; // 15-min block = 16px compact, 34px full
-  const minBlock = compact ? 14 : 22;
+  const hourHeight = compact ? 56 : 80; // 15-min block = 14px compact, 20px full
+  const minBlock = compact ? 14 : 20;
+  const frameHeight = compact ? 448 : 560; // ~8 hours visible, the rest scrolls
 
   // The 7 local days shown, starting today
   const days = useMemo(() => {
@@ -101,33 +101,28 @@ export default function WeekCanvas({
     [days, plan.availability, plan.events]
   );
 
-  // Visible hours = union of hours touched by free time, events and blocks (now and before).
-  // Hours that hold blocks get full height; free-but-empty hours are drawn short,
-  // so 15-minute evening blocks stay readable instead of empty afternoons taking the space.
-  const segments = useMemo(() => {
-    const hours = new Set<number>();
-    const busy = new Set<number>();
-    const touch = (start: number, end: number, set: Set<number>) => {
-      for (let h = Math.floor(start / 60); h < Math.ceil(end / 60); h++) set.add(h);
-    };
-    shading.forEach((s) => [...s.free, ...s.events].forEach((r) => touch(r.start, r.end, hours)));
-    [...plan.schedule.blocks, ...(previous?.schedule.blocks ?? [])].forEach((b) => {
-      touch(minutesOfDay(b.startTime), minutesOfDay(b.endTime), hours);
-      touch(minutesOfDay(b.startTime), minutesOfDay(b.endTime), busy);
-    });
-    if (hours.size === 0) for (let h = 18; h < 22; h++) hours.add(h);
+  // The full day, midnight to midnight, every hour the same height (like any calendar).
+  // The grid scrolls inside a fixed-height frame and opens at the part of the day that matters.
+  const segments = useMemo(
+    () => Array.from({ length: 24 }, (_, h) => ({ hour: h, y: h * hourHeight, height: hourHeight, gapBefore: false })),
+    [hourHeight]
+  );
 
-    const quiet = compact ? 14 : 30;
-    const sorted = [...hours].sort((a, b) => a - b);
-    let y = 0;
-    return sorted.map((h, i) => {
-      if (i > 0 && h !== sorted[i - 1] + 1) y += GAP;
-      const height = busy.has(h) ? hourHeight : quiet;
-      const seg = { hour: h, y, height, gapBefore: i > 0 && h !== sorted[i - 1] + 1 };
-      y += height;
-      return seg;
-    });
-  }, [shading, plan.schedule.blocks, previous, hourHeight, compact]);
+  // Where to open: an hour before the earliest of now (today) or the first block / free time
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Open where your plan is: half an hour before the earliest planned block this week
+  // (else your earliest free time, else 6pm). Scroll for the rest of the 24 hours.
+  const firstMinute = useMemo(() => {
+    const blocks = plan.schedule.blocks.map((b) => minutesOfDay(b.startTime));
+    const free = shading.flatMap((s) => s.free.map((f) => f.start));
+    const earliest = blocks.length ? Math.min(...blocks) : free.length ? Math.min(...free) : 18 * 60;
+    return Math.max(0, earliest - 30);
+  }, [plan.schedule.blocks, shading]);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = (firstMinute / 60) * hourHeight;
+    // only on mount and when the view size changes, so it doesn't jump while you scroll
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hourHeight]);
 
   const last = segments[segments.length - 1];
   const totalHeight = last ? last.y + last.height : hourHeight;
@@ -258,15 +253,23 @@ export default function WeekCanvas({
             })}
           </div>
 
-          {/* Grid */}
+          {/* Grid: all 24 hours, scrolling inside a fixed frame */}
+          <div
+            ref={scrollRef}
+            data-calendar-scroll
+            className="relative overflow-y-auto overscroll-contain rounded-b-lg border-t border-border/70"
+            style={{ maxHeight: frameHeight }}
+          >
           <div className="grid" style={{ gridTemplateColumns: cols }}>
             {/* Hour labels */}
             <div className="relative" style={{ height: totalHeight }}>
-              {segments.map((s) => (
-                <div key={s.hour} className="absolute right-2 text-[10px] text-muted-foreground tabular-nums" style={{ top: s.y - 6 }}>
-                  {hourLabel(s.hour)}
-                </div>
-              ))}
+              {segments.map((s) =>
+                s.hour === 0 ? null : (
+                  <div key={s.hour} className="absolute right-2 text-[10px] text-muted-foreground tabular-nums" style={{ top: s.y - 6 }}>
+                    {hourLabel(s.hour)}
+                  </div>
+                )
+              )}
             </div>
 
             {days.map((d, di) => narrow && di !== focusDay ? null : (
@@ -293,13 +296,14 @@ export default function WeekCanvas({
                     : undefined
                 }
               >
-                {/* Hour lines and gaps */}
+                {/* Night hours (before 6am, after 11pm) are tinted so the day reads at a glance */}
+                <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 bg-muted/40" style={{ height: 6 * hourHeight }} />
+                <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bg-muted/40" style={{ top: 23 * hourHeight, height: hourHeight }} />
+                {/* Hour and half-hour lines */}
                 {segments.map((s) => (
                   <div key={s.hour}>
-                    {s.gapBefore && (
-                      <div className="absolute inset-x-0 bg-muted/60" style={{ top: s.y - GAP, height: GAP }} />
-                    )}
-                    <div className="absolute inset-x-0 border-t border-border/50" style={{ top: s.y }} />
+                    <div className="absolute inset-x-0 border-t border-border/60" style={{ top: s.y }} />
+                    <div className="absolute inset-x-0 border-t border-dashed border-border/30" style={{ top: s.y + s.height / 2 }} />
                   </div>
                 ))}
 
@@ -422,6 +426,7 @@ export default function WeekCanvas({
                   })}
               </div>
             ))}
+          </div>
           </div>
 
           {/* At-risk tray: tasks that no longer fit drop in here */}

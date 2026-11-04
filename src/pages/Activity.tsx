@@ -13,8 +13,10 @@ import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Brain, Briefcase, CalendarClock, ChevronDown, Loader2, AlertCircle } from '@/components/icons';
+import { Brain, Briefcase, CalendarClock, ChevronDown, Loader2, AlertCircle, MessageSquare } from '@/components/icons';
 import { listReceipts, listEarlierRecords, type Receipt, type ReceiptDomain } from '@/lib/receipts';
+import { listConversations, type Conversation, type Turn } from '@/lib/library/store';
+import { cn } from '@/lib/utils';
 import { useUserId } from '@/contexts/AuthContext';
 import { formatDate } from '@/lib/scheduling/utils';
 
@@ -22,7 +24,62 @@ const DOMAIN = {
   plan: { label: 'Plan', icon: CalendarClock },
   study: { label: 'Study', icon: Brain },
   job: { label: 'Jobs', icon: Briefcase },
+  talk: { label: 'Talks', icon: MessageSquare },
 } as const;
+
+/** Last 5 weeks as a calendar: how much you did each day; click a day to jump to it */
+function ActivityCalendar({ perDay, onPick }: { perDay: Map<string, number>; onPick: (key: string) => void }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  // Start on the Monday 4 weeks before this week's Monday
+  const start = new Date(today);
+  start.setDate(today.getDate() - ((today.getDay() + 6) % 7) - 28);
+  const cells = Array.from({ length: 35 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+  const max = Math.max(1, ...perDay.values());
+  const active = cells.filter((d) => d <= today && (perDay.get(formatDate(d)) ?? 0) > 0).length;
+  const shade = (n: number) => (n === 0 ? 'bg-muted' : n / max > 0.66 ? 'bg-primary' : n / max > 0.33 ? 'bg-primary/60' : 'bg-primary/30');
+
+  return (
+    <Card className="mb-6 p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[14px] font-semibold">Last 5 weeks</h2>
+        <span className="text-[12px] text-muted-foreground">Active {active} of 35 days · click a day to jump to it</span>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5 text-center text-[10.5px] text-muted-foreground">
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+        {cells.map((d) => {
+          const key = formatDate(d);
+          const n = perDay.get(key) ?? 0;
+          const future = d > today;
+          const isToday = d.getTime() === today.getTime();
+          return (
+            <button
+              key={key}
+              disabled={future}
+              onClick={() => onPick(key)}
+              title={`${d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}: ${n} ${n === 1 ? 'entry' : 'entries'}`}
+              aria-label={`${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}, ${n} entries`}
+              className={cn(
+                'flex h-9 flex-col items-center justify-center rounded-md text-[11px] tabular-nums transition-transform hover:scale-[1.06] disabled:opacity-30 disabled:hover:scale-100',
+                future ? 'bg-transparent' : shade(n),
+                n / max > 0.66 ? 'text-primary-foreground' : 'text-foreground/80',
+                isToday && 'ring-2 ring-foreground/70 ring-offset-1 ring-offset-card'
+              )}
+            >
+              {d.getDate() === 1 ? d.toLocaleDateString('en-US', { month: 'short' }) : d.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 const VERIFICATION = {
   system_recorded: { label: 'Recorded by Ropi', variant: 'success' as const, help: 'Ropi did this or saw it happen, and saved it at the time.' },
@@ -54,26 +111,49 @@ function humanValue(v: unknown): string {
   return String(v);
 }
 
+type Domain = ReceiptDomain | 'talk';
+type Entry = Omit<Receipt, 'domain'> & { domain: Domain; turns?: Turn[] };
+
+/** Conversations with Ropi shown as History entries */
+const fromConversation = (c: Conversation): Entry => ({
+  id: `talk-${c.id}`,
+  user_id: '',
+  domain: 'talk',
+  kind: 'talk.conversation',
+  actor: 'user',
+  verification: 'system_recorded',
+  outcome: 'succeeded',
+  title: `Talked with Ropi: ${c.title}`,
+  detail: `${c.turns.length} message${c.turns.length === 1 ? '' : 's'} · ${c.mode === 'voice' ? 'by voice' : 'typed'}`,
+  subject_id: c.id,
+  evidence: {},
+  occurred_at: c.started_at,
+  turns: c.turns,
+});
+
 export default function Activity() {
   const userId = useUserId();
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [receipts, setReceipts] = useState<Entry[]>([]);
   const [receiptCount, setReceiptCount] = useState(0);
   const [limit, setLimit] = useState(PAGE);
   const [available, setAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | ReceiptDomain>('all');
+  const [filter, setFilter] = useState<'all' | Domain>('all');
   const [open, setOpen] = useState<string | null>(null);
+  const [jumpNote, setJumpNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
     listReceipts(limit)
       .then(async (r) => {
-        const earlier = await listEarlierRecords(r.receipts, userId).catch(() => []);
+        const [earlier, talks] = await Promise.all([listEarlierRecords(r.receipts, userId).catch(() => []), listConversations().catch(() => [])]);
         // Older records only below the oldest receipt shown, so paging stays in time order
         const oldest = r.receipts.length === limit ? r.receipts[r.receipts.length - 1]?.occurred_at : undefined;
-        const merged = [...r.receipts, ...earlier.filter((e) => !oldest || e.occurred_at >= oldest)].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+        const merged: Entry[] = [...r.receipts, ...earlier, ...talks.filter((c) => c.turns.length > 0).map(fromConversation)]
+          .filter((e) => !oldest || e.occurred_at >= oldest || r.receipts.some((x) => x.id === e.id))
+          .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
         setReceiptCount(r.receipts.length);
         setReceipts(merged);
         setAvailable(r.available);
@@ -89,11 +169,29 @@ export default function Activity() {
       plan: receipts.filter((r) => r.domain === 'plan').length,
       study: receipts.filter((r) => r.domain === 'study').length,
       job: receipts.filter((r) => r.domain === 'job').length,
+      talk: receipts.filter((r) => r.domain === 'talk').length,
     }),
     [receipts]
   );
+  const perDay = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of receipts) {
+      const k = formatDate(new Date(r.occurred_at));
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  }, [receipts]);
+  const jumpTo = (key: string) => {
+    setFilter('all');
+    setJumpNote(null);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`day-${key}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else setJumpNote(`Nothing recorded on ${new Date(`${key}T12:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}.`);
+    });
+  };
   const days = useMemo(() => {
-    const map = new Map<string, Receipt[]>();
+    const map = new Map<string, Entry[]>();
     for (const r of shown) {
       const key = formatDate(new Date(r.occurred_at));
       map.set(key, [...(map.get(key) ?? []), r]);
@@ -103,10 +201,13 @@ export default function Activity() {
 
   return (
     <DashboardLayout>
-      <PageHeader eyebrow="History" title="What you’ve done" description="Every quiz, review, replan and application, day by day. Entries can’t be edited or deleted." />
+      <PageHeader eyebrow="History" title="What you’ve done" description="Every quiz, review, replan, application and conversation, day by day. Entries can’t be edited or deleted." />
 
-      <div className="mb-6 inline-flex rounded-lg bg-muted p-0.5" role="tablist" aria-label="Filter">
-        {(['all', 'plan', 'study', 'job'] as const).map((f) => (
+      {receipts.length > 0 && <ActivityCalendar perDay={perDay} onPick={jumpTo} />}
+      {jumpNote && <p className="-mt-3 mb-5 text-[12.5px] text-muted-foreground">{jumpNote}</p>}
+
+      <div className="mb-6 inline-flex max-w-full overflow-x-auto rounded-lg bg-muted p-0.5" role="tablist" aria-label="Filter">
+        {(['all', 'study', 'plan', 'job', 'talk'] as const).map((f) => (
           <button
             key={f}
             role="tab"
@@ -148,7 +249,7 @@ export default function Activity() {
       ) : (
         <div className="space-y-8">
           {days.map(([key, items]) => (
-            <section key={key} aria-label={dayHeading(key)}>
+            <section key={key} id={`day-${key}`} className="scroll-mt-6" aria-label={dayHeading(key)}>
               <div className="mb-2.5 flex items-baseline justify-between gap-3">
                 <h2 className="text-[14px] font-semibold">{dayHeading(key)}</h2>
                 <span className="text-[12px] tabular-nums text-muted-foreground">
@@ -184,7 +285,17 @@ export default function Activity() {
                           </Badge>
                           <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
                         </button>
-                        {expanded && (
+                        {expanded && r.turns && (
+                          <ol className="space-y-2 border-t border-dashed bg-background px-5 py-4 sm:pl-[118px]">
+                            {r.turns.map((t, i) => (
+                              <li key={i} className="text-[13px] leading-relaxed">
+                                <span className="mr-2 text-[11px] tabular-nums text-muted-foreground">{new Date(t.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                                <span className="font-medium">{t.role === 'you' ? 'You' : 'Ropi'}:</span> <span className="text-foreground/85">{t.text}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                        {expanded && !r.turns && (
                           <div className="border-t border-dashed bg-background px-5 py-4 sm:pl-[118px]">
                             <p className="text-[12.5px]">
                               <span className="font-medium">{V.label}.</span> <span className="text-muted-foreground">{V.help}</span>

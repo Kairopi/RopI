@@ -71,3 +71,17 @@ https://github.com/colophon-group/jobseek @ 2828c7c8fb58489c8a1e74803c816f8db4b2
 Ropi calls the public API at https://jseek.co (`/api/v1/search`, `/api/v1/resolve`) and reads each posting's published description (`{assets}/job/{id}/{locale}/latest.html`, the `descriptionUrl` built in `apps/web/src/lib/services/search.ts`), in `src/lib/jobs/jobseek-client.ts`. Endpoint shapes were taken from the repo's MCP server (`packages/mcp-server/src/tools`). No source files were copied.
 
 Job data attribution, as the repo's `LICENSE-JOB-DATA` asks: Viktor Shcherbakov, "Collection of Job Postings," (c) 2025, CC BY-NC 4.0, https://creativecommons.org/licenses/by-nc/4.0/. That licence is non-commercial. Job descriptions, logos and other employer content are not covered by it and remain the employers'. Ropi keeps a copy of a description only for the user who saved that job, so they can score their resume against it.
+
+## Other job boards (public APIs)
+Called from the browser in `src/lib/jobs/sources.ts`. Each result shows the board's name and links back to the posting on its site (a followed link, no `nofollow`), as each board's terms ask. You apply on the board's site.
+- **Remotive**, https://remotive.com: jobs are credited to Remotive with a link to each listing. Few requests: results are cached for 15 minutes per search.
+- **Remote OK**, https://remoteok.com: the feed's terms ask for a followed link back and a mention of Remote OK as the source. Ropi doesn't use the Remote OK logo.
+- **Jobicy**, https://jobicy.com: the feed asks that links are attributed back to Jobicy.com.
+- **Arbeitnow**, https://www.arbeitnow.com: the public job board API, credited and linked per listing.
+
+Not used:
+- The Muse: its newest postings were from August 2025.
+- Himalayas: its terms forbid passing listings on, and it sends no CORS headers.
+
+## Apple Podcasts search
+https://itunes.apple.com/search and /lookup (public, no key), in `src/lib/coach/podcasts.ts`. Used to recommend shows and play their latest public episode. Every pick links to its page on Apple Podcasts.

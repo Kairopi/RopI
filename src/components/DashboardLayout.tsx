@@ -15,6 +15,7 @@ import {
   X,
   Clock,
   Search,
+  Mic,
 } from '@/components/icons';
 
 interface DashboardLayoutProps {
@@ -25,6 +26,7 @@ interface DashboardLayoutProps {
 // highlighted on sub-pages (e.g. a quiz or the reviews page lights up "Learn").
 const navigation = [
   { name: 'Today', href: '/dashboard', icon: LayoutDashboard, match: ['/dashboard'] },
+  { name: 'Talk', href: '/talk', icon: Mic, match: ['/talk'] },
   { name: 'LifeShift', href: '/schedule', icon: CalendarDays, match: ['/schedule'] },
   { name: 'Learn', href: '/learning', icon: GraduationCap, match: ['/learn', '/study-guide', '/quiz', '/voice-quiz', '/reviews'] },
   { name: 'Jobs', href: '/jobs', icon: Briefcase, match: ['/jobs'] },
@@ -92,7 +94,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
 
   // Close the mobile menu on navigation
-  useEffect(() => setMobileMenuOpen(false), [location.pathname]);
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -178,6 +182,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 lg:px-10 lg:py-9">{children}</div>
         </div>
       </main>
+
+      {/* Phones: Talk is one tap away from anywhere (hands busy, on the move) */}
+      {!['/talk', '/voice-quiz'].some((p) => location.pathname.startsWith(p)) && (
+        <button
+          onClick={() => navigate('/talk')}
+          aria-label="Talk to Ropi"
+          className="fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-float transition-transform active:scale-95 lg:hidden"
+        >
+          <Mic className="h-6 w-6" />
+        </button>
+      )}
 
       <AskRopi open={askOpen} onOpenChange={setAskOpen} />
     </div>

@@ -17,6 +17,8 @@ import LifeShift from './pages/LifeShift'
 import TaskBoard from './pages/TaskBoard'
 import Setup from './pages/Setup'
 import Activity from './pages/Activity'
+import Talk from './pages/Talk'
+import Topic from './pages/Topic'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -142,6 +144,22 @@ function App() {
               }
             />
             <Route path="/activity" element={<Navigate to="/history" replace />} />
+            <Route
+              path="/talk"
+              element={
+                <ProtectedRoute>
+                  <Talk />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/learn/topic/:key"
+              element={
+                <ProtectedRoute>
+                  <Topic />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>

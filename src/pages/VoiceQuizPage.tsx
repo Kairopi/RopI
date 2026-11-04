@@ -85,7 +85,7 @@ export default function VoiceQuizPage() {
         </div>
       ) : (
         // key restarts the quiz cleanly when switching quizzes
-        <VoiceQuiz key={`${quizParam}-${quiz.title}`} quiz={quiz} onComplete={handleComplete} />
+        <VoiceQuiz key={`${quizParam}-${quiz.title}`} quiz={quiz} onComplete={handleComplete} autoStart={params.get('start') === '1'} />
       )}
     </DashboardLayout>
   );

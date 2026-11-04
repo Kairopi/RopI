@@ -95,6 +95,8 @@ await step('finish it: results quote the PDF word for word', async () => {
     await page.getByRole('button', { name: /^Next/ }).click();
   }
   await page.waitForURL('**/quiz/results/**', { timeout: 15000 });
+  // Missed answers open by default; if everything was right, open the first one
+  if (!(await page.locator('blockquote').count())) await page.locator('[data-panel="quiz-answers"] li button').first().click();
   const quote = page.locator('blockquote').first();
   await quote.waitFor({ timeout: 20000 });
   await page.getByText(/quote verified word for word/).first().waitFor();

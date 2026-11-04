@@ -118,8 +118,9 @@ await step('results: score 50% + skill update', async () => {
   await page.getByText('What this quiz showed').waitFor({ timeout: 20000 });
 });
 await step('results: weak spot detected', async () => {
-  await page.getByRole('heading', { name: 'Weak spots' }).waitFor({ timeout: 10000 });
+  await page.getByText('Weak spot', { exact: true }).first().waitFor({ timeout: 10000 });
   await page.getByText('Lambda cold starts', { exact: true }).first().waitFor();
+  await page.getByRole('heading', { name: /cold starts/ }).first().waitFor(); // the verdict names it
 });
 await step('results: 3 review cards created', async () => {
   await page.getByText(/3 cards added/).waitFor({ timeout: 20000 });
