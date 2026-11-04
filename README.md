@@ -54,9 +54,9 @@ What isn't a model:
 - **Scheduling** is a constraint scheduler adapted from smart-agentic-calendar.
 - **Got a few minutes?** is a small set of rules (lib/spare/plan.ts). It never plans more minutes than you said.
 - **Review timing** is FSRS, the Free Spaced Repetition Scheduler (`ts-fsrs` 6.0.0): it predicts when you'd forget each card and brings it back just before. The app never shows the name; it says "comes back right before you'd forget it".
-- **When you've finished speaking** (`voice/endpoint.ts`): Ropi waits longer when you trail off ("...and", "so um", one word) and less after a finished question, like production voice agents' turn detection (LiveKit's turn detector). There's a "Wait for me to finish" setting, and tapping the mic sends what you've said.
+- **When you've finished speaking** (`voice/endpoint.ts`): Ropi waits longer when you trail off ("...and", "so um", one word) and less after a finished question, like the turn detection in production voice agents (LiveKit's turn detector). There's a "Wait for me to finish" setting, and tapping the mic sends what you've said.
 - **Resume scoring** is deterministic. It checks the job description's key terms, named skills, job title, resume sections and gaps between jobs.
-- **Voice** uses the browser's Web Speech API.
+- **Speaking** uses the browser's voices (or the optional on-device Kokoro voice); listening is Muse Voice Transcribe, with the browser's own recognition as a fallback.
 
 ## Run it locally
 
