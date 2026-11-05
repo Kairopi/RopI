@@ -271,6 +271,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <Search className="h-3.5 w-3.5" />
           Ask
         </button>
+        {/* Phones: Talk is one tap away from anywhere (hands busy, on the move), up here so it never covers a button */}
+        {!location.pathname.startsWith('/talk') && (
+          <button
+            onClick={() => navigate('/talk')}
+            aria-label="Talk to Ropi"
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[12.5px] font-medium text-primary-foreground active:scale-95"
+          >
+            <Mic className="h-3.5 w-3.5" />
+            Talk
+          </button>
+        )}
       </div>
 
       {/* Mobile menu */}
@@ -299,17 +310,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className={cn('mx-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-9', collapsed ? 'max-w-[1560px]' : 'max-w-[1200px]')}>{children}</div>
         </div>
       </main>
-
-      {/* Phones: Talk is one tap away from anywhere (hands busy, on the move) */}
-      {!['/talk', '/voice-quiz', '/cv'].some((p) => location.pathname.startsWith(p)) && (
-        <button
-          onClick={() => navigate('/talk')}
-          aria-label="Talk to Ropi"
-          className="fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-float transition-transform active:scale-95 lg:hidden print:hidden"
-        >
-          <Mic className="h-6 w-6" />
-        </button>
-      )}
 
       <AskRopi open={askOpen} onOpenChange={setAskOpen} />
     </div>
