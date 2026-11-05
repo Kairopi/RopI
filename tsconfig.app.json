@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    /* TypeScript 7.0 compatibility */
+    "ignoreDeprecations": "6.0",
+    
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    /* Unused-variable checks are lint concerns, not correctness; left off so the
+       build fails only on real type errors */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path Mapping (baseUrl was removed in TypeScript 7; paths resolve relative to this file) */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src"],
+  /* Leftover Vite starter files, not used by the app (entry is src/main.tsx) */
+  "exclude": ["src/main.ts", "src/counter.ts"]
+}
