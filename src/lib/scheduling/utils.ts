@@ -2,7 +2,7 @@
  * Time Utilities for ROPI Scheduling
  *
  * Adapted from Smart Agentic Calendar
- * Reference: docs/UPSTREAM_AUDIT.md
+ * Reference: THIRD_PARTY_NOTICES.md
  *
  * All calendar math (day of week, HH:MM windows, YYYY-MM-DD dates) uses the
  * user's LOCAL time zone. Timestamps are stored as UTC ISO strings, which

@@ -2,7 +2,7 @@
  * Availability Map Builder for ROPI LifeShift
  * 
  * Adapted from Smart Agentic Calendar scheduler.ts lines 186-238
- * Reference: docs/UPSTREAM_AUDIT.md - Smart Agentic Calendar
+ * Reference: THIRD_PARTY_NOTICES.md - Smart Agentic Calendar
  * 
  * Purpose: Calculate free time slots by subtracting events and blocks from availability windows
  */

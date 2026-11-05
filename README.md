@@ -98,7 +98,7 @@ The Meta key never reaches the browser in production. Model calls go to `/api/mu
    - Don't add `VITE_MUSE_API_KEY`.
    - For the live interviewer: `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ROPI_LLM_SECRET` (all server only)
 3. Deploy. In Supabase, Authentication > URL Configuration, add the Vercel URL.
-4. Point the interviewer's brain at the deployment: `node .tmp-check/make-interviewer.mjs https://<your-domain>/api/llm` (updates the ElevenLabs agent; reads keys from `.env`).
+4. Point the interviewer's brain at the deployment: in the ElevenLabs agent, set the custom LLM URL to `https://<your-domain>/api/llm` and its secret to `ROPI_LLM_SECRET`.
 
 ### The live interviewer
 
@@ -135,7 +135,7 @@ End-to-end browser tests (Playwright) run against the live Supabase project and 
 
 Logic suites cover the spare-minutes picker, the scheduler, week logic, voice command parsing, document sources, FSRS previews and resume scoring.
 
-These test scripts live in `.tmp-check/`, which is not committed yet.
+The test scripts are kept out of this repo.
 
 ## Known limits
 
@@ -148,6 +148,6 @@ These test scripts live in `.tmp-check/`, which is not committed yet.
 
 ## Credits
 
-Code adapted from, and designs followed from, open-source projects, each pinned to the exact commit studied and with its licence: see `THIRD_PARTY_NOTICES.md`. What was taken from each repo and why is in `docs/UPSTREAM_AUDIT.md`.
+Code adapted from, and designs followed from, open-source projects, each pinned to the exact commit studied and with its licence: see `THIRD_PARTY_NOTICES.md`.
 
 Job listings come from [Job Seek](https://jseek.co): Viktor Shcherbakov, "Collection of Job Postings," (c) 2025, [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). Job descriptions belong to the employers.

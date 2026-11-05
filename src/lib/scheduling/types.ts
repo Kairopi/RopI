@@ -2,7 +2,7 @@
  * ROPI LifeShift Scheduling Types
  * 
  * Adapted from Smart Agentic Calendar patterns
- * Reference: docs/UPSTREAM_AUDIT.md - Smart Agentic Calendar
+ * Reference: THIRD_PARTY_NOTICES.md - Smart Agentic Calendar
  */
 
 export interface Task {

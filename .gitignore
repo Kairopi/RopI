@@ -37,3 +37,18 @@ lerna-debug.log*
 
 # Supabase
 .supabase
+
+# Private: tests, research, notes and AI-tool files (kept locally, not published)
+.tmp-check/
+.agents/
+.claude/
+.kiro/
+agent/
+docs/
+skills-lock.json
+@/
+test-*.ts
+enable-test-access.sql
+*.md
+!README.md
+!THIRD_PARTY_NOTICES.md

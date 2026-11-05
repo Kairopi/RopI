@@ -2,7 +2,7 @@
  * ROPI LifeShift Scheduler - Main Algorithm
  * 
  * Adapted from Smart Agentic Calendar scheduler.ts
- * Reference: docs/UPSTREAM_AUDIT.md - Smart Agentic Calendar
+ * Reference: THIRD_PARTY_NOTICES.md - Smart Agentic Calendar
  * 
  * Algorithm:
  * 1. Build availability map (windows - events - blocks = free slots)

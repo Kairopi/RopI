@@ -2,7 +2,7 @@
  * Slot Scoring Functions for ROPI LifeShift
  * 
  * Adapted from Smart Agentic Calendar scheduler.ts lines 68-184
- * Reference: docs/UPSTREAM_AUDIT.md - Smart Agentic Calendar
+ * Reference: THIRD_PARTY_NOTICES.md - Smart Agentic Calendar
  * 
  * Scoring System (0-1 scale per factor):
  * - Deadline Proximity: 40% weight (how urgent is this task?)

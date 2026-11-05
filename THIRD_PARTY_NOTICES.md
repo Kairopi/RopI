@@ -1,6 +1,6 @@
 # Third-party notices
 
-Ropi includes code adapted from, or follows designs of, the open-source projects below. For each one this file gives the exact commit studied (see `docs/UPSTREAM_AUDIT.md`) and its licence notice.
+Ropi includes code adapted from, or follows designs of, the open-source projects below. For each one this file gives the exact commit studied and its licence notice.
 
 ## smart-agentic-calendar (code adapted)
 https://github.com/fbdo/smart-agentic-calendar @ 6088e957e17eda94fd362f8e420510827b5ed858
