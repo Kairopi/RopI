@@ -93,3 +93,5 @@ https://itunes.apple.com/search and /lookup (public, no key), in `src/lib/coach/
 
 ## Recommended Web Speech voices (design followed)
 The ranking in `voiceScore` (`src/lib/voice/speech-manager.ts`) follows the tested list in https://github.com/HadrienGardeur/web-speech-recommended-voices (Readium project). No code copied.
+## Uiverse.io loader by andrew-manzyk (voice orb)
+https://uiverse.io/andrew-manzyk, MIT License (all Uiverse.io elements are MIT). Adapted in `src/components/RopiOrb.tsx` and `src/index.css` (`.ropi-orb`): recoloured to Ropi's cobalt, slowed, and stilled under reduced motion.

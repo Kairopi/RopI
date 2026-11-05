@@ -35,6 +35,7 @@ import { createJobApplication } from '@/lib/jobs/job-service';
 import { SOURCES, type JobPosting } from '@/lib/jobs/sources';
 import type { PlanContext } from '@/lib/knowledge/ask';
 import { cn } from '@/lib/utils';
+import { RopiOrb } from '@/components/RopiOrb';
 
 type State = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -615,9 +616,11 @@ function MicButton({ state, onClick, disabled, big = false, reduce, level = 0 }:
       className={cn(
         'relative flex shrink-0 items-center justify-center rounded-full text-primary-foreground transition-transform active:scale-95 disabled:opacity-40',
         big ? 'h-20 w-20 shadow-float' : 'h-10 w-10',
-        state === 'listening' ? 'bg-destructive' : state === 'idle' ? 'bg-primary' : 'bg-foreground'
+        state === 'listening' ? 'bg-destructive' : state === 'idle' ? 'bg-primary' : 'bg-transparent'
       )}
     >
+      {/* Ropi thinking or talking: the orb is Ropi's voice */}
+      {(state === 'thinking' || state === 'speaking') && <RopiOrb size={big ? 80 : 40} active={state} />}
       {/* Listening: a ring that grows with your voice, so you can see Ropi hears you */}
       {state === 'listening' && (
         <span
@@ -627,13 +630,13 @@ function MicButton({ state, onClick, disabled, big = false, reduce, level = 0 }:
         />
       )}
       {state === 'thinking' ? (
-        <Loader2 className={cn('animate-spin', big ? 'h-8 w-8' : 'h-5 w-5')} />
+        <span className="sr-only">Thinking</span>
       ) : state === 'idle' ? (
         <Mic className={big ? 'h-8 w-8' : 'h-5 w-5'} />
       ) : state === 'listening' ? (
         <Check className={big ? 'h-8 w-8' : 'h-5 w-5'} />
       ) : (
-        <Pause className={big ? 'h-8 w-8' : 'h-5 w-5'} />
+        <Pause className={cn('relative drop-shadow', big ? 'h-8 w-8' : 'h-5 w-5')} />
       )}
     </button>
   );

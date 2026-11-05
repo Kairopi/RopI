@@ -142,3 +142,61 @@
     }
   }
 }
+
+/* Ropi's voice orb (components/RopiOrb.tsx). Adapted from Uiverse.io, andrew-manzyk (MIT). */
+.ropi-orb {
+  --orb-one: hsl(212 100% 72%);
+  --orb-two: hsl(232 85% 40%);
+  --orb-three: hsl(212 100% 72% / 0.5);
+  --orb-four: hsl(232 85% 40% / 0.5);
+  --orb-five: hsl(212 100% 72% / 0.25);
+  --orb-time: 2.4s;
+  border-radius: 9999px;
+  overflow: hidden;
+  box-shadow: 0 0 20px 0 var(--orb-three), 0 12px 32px 0 var(--orb-four);
+  animation: ropi-orb-hue calc(var(--orb-time) * 3) ease-in-out infinite;
+}
+.ropi-orb-thinking { --orb-time: 4s; }
+.ropi-orb-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100px;
+  height: 100px;
+  transform-origin: 0 0;
+  border-radius: 9999px;
+  background: hsl(232 85% 30%);
+}
+.ropi-orb-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 9999px;
+  border-top: solid 1px var(--orb-one);
+  border-bottom: solid 1px var(--orb-two);
+  background: linear-gradient(180deg, var(--orb-five), var(--orb-four));
+  box-shadow: inset 0 10px 10px 0 var(--orb-three), inset 0 -10px 10px 0 var(--orb-four);
+}
+.ropi-orb-inner svg { position: absolute; }
+.ropi-orb-box {
+  display: block;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(180deg, var(--orb-one) 30%, var(--orb-two) 70%);
+}
+.ropi-orb mask { filter: contrast(15); animation: ropi-orb-round calc(var(--orb-time) / 2) linear infinite; }
+.ropi-orb mask polygon { filter: blur(7px); }
+.ropi-orb mask polygon:nth-child(1) { transform-origin: 75% 25%; transform: rotate(90deg); }
+.ropi-orb mask polygon:nth-child(2) { transform-origin: 50% 50%; animation: ropi-orb-spin var(--orb-time) linear infinite reverse; }
+.ropi-orb mask polygon:nth-child(3) { transform-origin: 50% 60%; animation: ropi-orb-spin var(--orb-time) linear infinite; animation-delay: calc(var(--orb-time) / -3); }
+.ropi-orb mask polygon:nth-child(4) { transform-origin: 40% 40%; animation: ropi-orb-spin var(--orb-time) linear infinite reverse; }
+.ropi-orb mask polygon:nth-child(5) { transform-origin: 40% 40%; animation: ropi-orb-spin var(--orb-time) linear infinite reverse; animation-delay: calc(var(--orb-time) / -2); }
+.ropi-orb mask polygon:nth-child(6) { transform-origin: 60% 40%; animation: ropi-orb-spin var(--orb-time) linear infinite; }
+.ropi-orb mask polygon:nth-child(7) { transform-origin: 60% 40%; animation: ropi-orb-spin var(--orb-time) linear infinite; animation-delay: calc(var(--orb-time) / -1.5); }
+@keyframes ropi-orb-spin { to { transform: rotate(360deg); } }
+@keyframes ropi-orb-round { 0%, 60%, 100% { filter: contrast(15); } 20%, 40% { filter: contrast(3); } }
+@keyframes ropi-orb-hue { 0%, 100% { filter: hue-rotate(0deg); } 40% { filter: hue-rotate(-18deg); } 70% { filter: hue-rotate(12deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ropi-orb, .ropi-orb mask, .ropi-orb mask polygon { animation: none !important; }
+}
