@@ -4,8 +4,7 @@
  * Three questions, in the order a busy person asks them:
  *   1. Got a few minutes? What's worth doing right now (the spare-minutes picker).
  *   2. What's my day? Today's plan as one short list, with Start on the first
- *      thing and a line to add something. "Hear my day" reads it out loud;
- *      "Plan by voice" opens Talk on "Plan my day".
+ *      thing and a line to add something. "Hear my day" reads it out loud.
  *   3. Am I growing? The last 7 days.
  * The week calendar sits below for when you want the whole picture.
  */
@@ -13,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowRight, Plus, Mic, Volume2, Pause, CheckCircle2 } from '@/components/icons';
+import { ArrowRight, Plus, Volume2, Pause, CheckCircle2 } from '@/components/icons';
 import DashboardLayout from '../components/DashboardLayout';
 import WeekCanvas, { WeekLegend, weekRangeLabel } from '../components/WeekCanvas';
 import { PageHeader } from '../components/PageHeader';
@@ -66,7 +65,6 @@ export default function Dashboard() {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   })();
-  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const daysLeft = week.goal?.targetDate
     ? Math.ceil((new Date(week.goal.targetDate + 'T23:59:59').getTime() - Date.now()) / 86_400_000)
     : null;
@@ -99,7 +97,6 @@ export default function Dashboard() {
       )}
 
       <PageHeader
-        eyebrow={dateLabel}
         title={
           <>
             {greeting}
@@ -111,6 +108,10 @@ export default function Dashboard() {
             <>
               Working toward <span className="font-medium text-foreground">{week.goal.title}</span>
               {daysLeft !== null && daysLeft >= 0 ? ` · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : ''}
+              {' · '}
+              <button onClick={() => navigate('/profile')} className="underline-offset-2 hover:text-foreground hover:underline">
+                Change
+              </button>
             </>
           ) : undefined
         }
@@ -141,10 +142,6 @@ export default function Dashboard() {
               <Plus />
               Add
             </Button>
-            <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/schedule')}>
-              Something changed?
-              <ArrowRight />
-            </Button>
           </>
         }
       >
@@ -170,7 +167,7 @@ export default function Dashboard() {
   );
 }
 
-/** "Hear my day": Ropi reads today out loud, right here. "Plan by voice" continues in Talk. */
+/** "Hear my day": Ropi reads today out loud, right here. */
 function HearMyDay({
   days,
   dueCards,
@@ -182,7 +179,6 @@ function HearMyDay({
   deadlines: { title: string; at: string }[];
   atRiskTitles: string[];
 }) {
-  const navigate = useNavigate();
   const [speaking, setSpeaking] = useState(false);
   const canSpeak = speechManager.getSupport().tts;
   useEffect(() => () => speechManager.stopSpeaking(), []);
@@ -218,10 +214,6 @@ function HearMyDay({
           {speaking ? 'Stop' : 'Hear my day'}
         </Button>
       )}
-      <Button variant="ghost" onClick={() => navigate(`/talk?q=${encodeURIComponent('Plan my day')}`)}>
-        <Mic />
-        Plan by voice
-      </Button>
     </>
   );
 }

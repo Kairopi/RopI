@@ -13,6 +13,7 @@ export function QuickAdd({ className, title = 'Add to your week' }: { className?
   const addTask = useWeek((s) => s.addTask);
   const [line, setLine] = useState('');
   const [added, setAdded] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
   const preview = useMemo(() => (line.trim() ? parseQuickAdd(line) : null), [line]);
 
   const submit = () => {
@@ -41,6 +42,8 @@ export function QuickAdd({ className, title = 'Add to your week' }: { className?
             value={line}
             onChange={(e) => setLine(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder="Read chapter 4 30m @thu"
             className="h-11 w-full bg-transparent text-[14px] placeholder:text-muted-foreground/70 focus:outline-none focus-visible:outline-none"
           />
@@ -59,7 +62,7 @@ export function QuickAdd({ className, title = 'Add to your week' }: { className?
             ))}
             <span className="ml-auto">Enter to add</span>
           </>
-        ) : (
+        ) : focused && (
           <span>
             <span className="font-medium text-foreground">45m</span> length · <span className="font-medium text-foreground">@fri 5pm</span> deadline ·{' '}
             <span className="font-medium text-foreground">!1</span> urgent

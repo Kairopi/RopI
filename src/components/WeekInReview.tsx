@@ -80,6 +80,7 @@ export function WeekInReview({ userId }: { userId: string }) {
   }, [rows, done]);
   const max = Math.max(1, ...days.map((d) => d.count));
   const activeDays = days.filter((d) => d.count > 0).length;
+  const empty = rows !== null && activeDays === 0;
 
   const stats = [
     { label: 'Growth time', value: focusMin >= 60 ? `${Math.round((focusMin / 60) * 10) / 10}h` : `${focusMin}m` },
@@ -92,8 +93,8 @@ export function WeekInReview({ userId }: { userId: string }) {
     <Panel
       id="today-last7"
       title="Last 7 days"
-      meta={rows === null ? undefined : `Active ${activeDays} of 7 days`}
-      summary={stats.map((s) => `${s.value} ${s.label.toLowerCase()}`).join(' · ')}
+      meta={rows === null || empty ? undefined : `Active ${activeDays} of 7 days`}
+      summary={empty ? 'Nothing yet.' : stats.map((s) => `${s.value} ${s.label.toLowerCase()}`).join(' · ')}
       actions={
         <Button size="sm" variant="ghost" onClick={() => navigate('/history')}>
           History
@@ -101,7 +102,7 @@ export function WeekInReview({ userId }: { userId: string }) {
         </Button>
       }
     >
-
+      {!empty && (<>
       <div className="flex items-end gap-1.5" aria-label={`Active on ${activeDays} of the last 7 days`}>
         {days.map((d, i) => (
           <div key={d.date} className="flex flex-1 flex-col items-center gap-1.5">
@@ -127,6 +128,7 @@ export function WeekInReview({ userId }: { userId: string }) {
           </div>
         ))}
       </dl>
+      </>)}
       {(rows === null || activeDays === 0 || (rows?.applied.length ?? 0) > 0) && (
         <p className="mt-3 text-[12px] text-muted-foreground">
           {rows === null
