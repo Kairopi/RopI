@@ -502,7 +502,7 @@ export function VoiceQuiz({ quiz, onComplete, autoStart = false }: VoiceQuizProp
             Say the letter or the answer. Your browser asks for the microphone once.{' '}
             <span
               className="cursor-help underline decoration-dotted underline-offset-2"
-              title="Speech recognition runs in your browser: Chrome and Edge send the audio to Google or Microsoft, Safari to Apple. Ropi only stores the words it heard for each answer."
+              title="Your browser turns speech into text (Chrome and Edge use Google or Microsoft). Ropi keeps only the words."
             >
               Where audio goes
             </span>

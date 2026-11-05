@@ -100,7 +100,7 @@ Return ONLY JSON: {"about": ""}`,
 
   return (
     <DashboardLayout>
-      <PageHeader title={`Hi, ${displayName}`} description="A few lines about you, so every answer, plan and practice question fits where you’re heading." />
+      <PageHeader title={`Hi, ${displayName}`} description="So every answer fits you." />
 
       {msg && <p role="status" className="mb-4 rounded-lg bg-success/[0.07] px-3.5 py-2.5 text-[13px] text-success">{msg}</p>}
 
@@ -194,7 +194,7 @@ Return ONLY JSON: {"about": ""}`,
           </Card>
           <Card className="p-5 text-[13px] text-muted-foreground">
             <div className="font-semibold text-foreground">Your data</div>
-            <p className="mt-1">Quizzes, cards, jobs, documents and History are saved to your private account. Your week, CV draft, profile and practice scores are kept in this browser.</p>
+            <p className="mt-1">Quizzes, jobs and History are in your account. Your week, CV draft and profile stay in this browser.</p>
             <Button variant="ghost" size="sm" className="mt-3 -ml-2" onClick={signOut}>
               <LogOut />
               Sign out

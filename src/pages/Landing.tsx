@@ -13,17 +13,17 @@ const PROOF = [
   {
     icon: Brain,
     title: 'Got 5 minutes? Ropi picks the one thing.',
-    body: 'The cards you’re about to forget, or the idea you keep missing. It never plans more than the time you have.',
+    body: 'The cards you’re about to forget, or the idea you keep missing.',
   },
   {
     icon: FileText,
     title: 'Your notes, quizzed with proof.',
-    body: 'Drop a PDF. Every question quotes the exact line it came from, checked word for word.',
+    body: 'Drop a PDF. Every question quotes the line it came from.',
   },
   {
     icon: Video,
     title: 'Practise out loud, then see what to fix.',
-    body: 'A live interviewer for your role that follows up on what you say. Then a review in your own words.',
+    body: 'A live interviewer for your role, then a review.',
   },
 ];
 
@@ -46,15 +46,14 @@ export default function Landing() {
           <section>
             <h1 className="font-display text-[44px] font-semibold leading-[1.03] tracking-[-0.04em] sm:text-[58px]">Turn dead time into growth time.</h1>
             <p className="mt-5 max-w-[50ch] text-[17px] leading-relaxed text-muted-foreground">
-              For people studying and job hunting around a full life. Ropi knows what you’re about to forget, and fits it into the minutes you actually have: on the
-              train, in a queue, getting ready.
+              For people studying and job hunting around a full life. Ropi fits what you’re about to forget into the minutes you have.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button size="lg" onClick={() => navigate('/login')}>
                 Try it free
                 <ArrowRight />
               </Button>
-              <span className="text-[13px] text-muted-foreground">No email or password. A sample week is one tap away.</span>
+              <span className="text-[13px] text-muted-foreground">No email or password.</span>
             </div>
 
             <ul className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -87,7 +86,7 @@ export default function Landing() {
         </main>
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t pt-4 text-[12px] text-muted-foreground">
-          <span>Your quizzes, plans and practice are private to your account. Ropi never applies to jobs for you.</span>
+          <span>Private to your account. Ropi never applies for you.</span>
           <span>Built for the Meta Global AI Developer Hackathon 2026.</span>
         </footer>
       </div>

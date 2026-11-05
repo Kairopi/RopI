@@ -511,7 +511,7 @@ export default function Talk() {
             <div className="pt-6 text-center">
               <h1 className="text-[26px] font-semibold leading-tight">What do you need right now?</h1>
               <p className="mx-auto mt-2 max-w-md text-[14px] text-muted-foreground">
-                Say how much time you have, or just ask. Ropi answers out loud, so you can keep getting ready, walking or waiting.
+                Say how long you have, or just ask.
               </p>
               <div className="mx-auto mt-6 flex max-w-lg flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((s) => (

@@ -159,9 +159,9 @@ export default function CV() {
   return (
     <DashboardLayout>
       <PageHeader
-        eyebrow="Grow"
+        
         title="Your CV"
-        description="Start from the resume you have, tailor it to a job in seconds, and download it free as PDF or Word."
+        description="Edit it, tailor it, download it."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => download('docx')} disabled={!!busy}>
@@ -181,7 +181,7 @@ export default function CV() {
         <div>
           <div className="text-[13.5px] font-semibold">{empty ? 'Start from your resume' : 'Your resume'}</div>
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-            {hasResume ? 'Ropi splits the resume you saved in Jobs into these fields, copying your words.' : 'Upload a PDF or Word resume, or start typing below.'}
+            {hasResume ? 'Ropi fills these in from your resume, word for word.' : 'Upload one, or type below.'}
           </p>
           <div className="mt-2.5 flex flex-wrap gap-2">
             {hasResume ? (
@@ -204,7 +204,7 @@ export default function CV() {
         </div>
         <div className="lg:border-l lg:pl-5">
           <div className="text-[13.5px] font-semibold">Tailor it to a job</div>
-          <p className="mt-0.5 text-[12.5px] text-muted-foreground">Uses the job’s own words where your experience already shows it. Never adds jobs, dates or numbers.</p>
+          <p className="mt-0.5 text-[12.5px] text-muted-foreground">Uses the job’s words. Never adds jobs, dates or numbers.</p>
           <div className="mt-2.5 flex flex-wrap gap-2">
             <select
               aria-label="Job to tailor for"
@@ -311,7 +311,7 @@ export default function CV() {
                   </button>
                 )}
               </div>
-              <Textarea id="cv-summary" value={cv.summary} onChange={(e) => set('summary', e.target.value)} rows={3} className="mt-1 text-[13px]" placeholder="Two or three sentences: who you are, what you’re great at, what you want next." />
+              <Textarea id="cv-summary" value={cv.summary} onChange={(e) => set('summary', e.target.value)} rows={3} className="mt-1 text-[13px]" placeholder="Who you are and what you want next." />
             </div>
           </Section>
 
@@ -366,7 +366,7 @@ export default function CV() {
           </Section>
 
           <Section title="Projects" onAdd={() => set('projects', [...cv.projects, emptyProject()])} addLabel="Add a project" defaultOpen={cv.projects.length > 0}>
-            {cv.projects.length === 0 && <p className="text-[12.5px] text-muted-foreground">Side projects, a portfolio or a repo. Great for career changers.</p>}
+            {cv.projects.length === 0 && <p className="text-[12.5px] text-muted-foreground">Side projects or a portfolio.</p>}
             {cv.projects.map((p, i) => (
               <Item key={i} title={p.name || `Project ${i + 1}`} onRemove={() => removeItem('projects', i)}>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -416,7 +416,7 @@ export default function CV() {
             <p className="mt-2 px-1 text-[11.5px] text-muted-foreground">{TEMPLATES.find((t) => t.id === template)?.note}</p>
           </Card>
           <CvPreview cv={cv} template={template} accent={accent} />
-          <p className="text-center text-[11.5px] text-muted-foreground">The PDF keeps real text, so application systems can read it. Word stays editable. Both are free.</p>
+          <p className="text-center text-[11.5px] text-muted-foreground">PDF with real text, or editable Word. Free.</p>
         </div>
       </div>
 

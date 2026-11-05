@@ -108,8 +108,8 @@ export default function Jobs() {
   return (
     <DashboardLayout>
       <PageHeader
-        title="Your job search"
-        description="Save roles, check your resume against each one, then apply yourself. Ropi never applies for you."
+        title="Jobs"
+        description="Save roles, check your fit, apply yourself."
         actions={
           <>
             <Button variant="ghost" onClick={() => navigate('/jobs/kanban')}>
@@ -146,7 +146,7 @@ export default function Jobs() {
             ) : (
               <>
                 <span className="font-medium">Add your resume once.</span>
-                <span className="text-muted-foreground"> Ropi scores every job against it and can tailor it for each one.</span>
+                <span className="text-muted-foreground"> Ropi scores every job against it.</span>
               </>
             )}
           </p>
@@ -174,7 +174,7 @@ export default function Jobs() {
           <div className="rounded-xl border border-dashed p-6 text-center">
             <p className="text-[14px] font-medium">No jobs yet</p>
             <p className="mx-auto mt-1 max-w-sm text-[12.5px] text-muted-foreground">
-              Search below and save a role, or add one you found yourself. Give it a closing date and Ropi books time to apply.
+              Search below or add a role. Give it a closing date and Ropi books time to apply.
             </p>
           </div>
         ) : (
@@ -413,7 +413,7 @@ function JobRow({
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
                 rows={5}
-                placeholder="Paste the full job description from the posting. Ropi scores your resume against this text."
+                placeholder="Paste the job description. Ropi scores your resume against it."
                 className="text-[13px]"
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -442,7 +442,7 @@ function JobRow({
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-accent/50 px-4 py-3">
               <p className="text-[13px]">
                 <span className="font-medium">Tailor your resume for {job.company}.</span>{' '}
-                <span className="text-muted-foreground">Ropi rewrites it around this job’s terms, using only what’s already true in your resume. You check it before using it.</span>
+                <span className="text-muted-foreground">Rewritten for this job from what’s already in your resume. Check it first.</span>
               </p>
               <Button size="sm" disabled={busy === 'tailor'} onClick={doTailor}>
                 {busy === 'tailor' && <Loader2 className="animate-spin" />}
@@ -527,7 +527,7 @@ function JobRow({
                   </Button>
                 </div>
               ) : (
-                <p className="text-[12.5px] text-muted-foreground">Apply on the company site, then press "I applied". Ropi records it as something you reported.</p>
+                <p className="text-[12.5px] text-muted-foreground">Apply on the company site, then press "I applied".</p>
               )}
             </div>
           )}

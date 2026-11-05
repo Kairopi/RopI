@@ -162,7 +162,7 @@ export default function Dashboard() {
           onBlockClick={(task, block) => setItem({ kind: 'block', task, block })}
           onEventClick={(event) => setItem({ kind: 'event', event })}
         />
-        <p className="mt-3 text-[11.5px] text-muted-foreground">Click any empty time to add something. Click a block to see it.</p>
+        <p className="mt-3 text-[11.5px] text-muted-foreground">Click empty time to add something.</p>
       </Panel>
 
       <WeekItemDialog item={item} onClose={() => setItem(null)} />

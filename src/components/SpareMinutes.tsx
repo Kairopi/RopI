@@ -82,7 +82,7 @@ export function SpareMinutes({ className, plannedAt }: { className?: string; pla
             Got a few minutes?
           </h2>
           <p className="mt-1 text-[13.5px] text-muted-foreground">
-            On the train, in a queue, getting ready. Say how long you have and Ropi picks what's worth it.
+            Pick how long you have.
           </p>
         </div>
 

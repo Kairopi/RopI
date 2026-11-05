@@ -200,7 +200,7 @@ export default function LifeShift() {
     <DashboardLayout>
       <PageHeader
         title="Say what changed."
-        description="Only the blocks that lose their time move, and each one says why."
+        description="Only what loses its time moves."
         actions={
           hasChanges && (
             <Button onClick={handleReset} variant="outline" size="sm">

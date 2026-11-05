@@ -175,7 +175,7 @@ export function AskRopi({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   </button>
                 ))}
                 <p className="mt-3 px-1 text-[11.5px] text-muted-foreground">
-                  Ropi answers only from your quiz history, review cards, documents and plan, and shows you where each claim comes from.
+                  Answers only from your own quizzes, cards, documents and plan.
                 </p>
               </div>
             )}

@@ -111,7 +111,7 @@ export default function TaskBoard() {
         {rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed px-6 py-14 text-center">
             <h3 className="text-[16px] font-semibold">Nothing on your plate</h3>
-            <p className="mx-auto mt-1 max-w-sm text-[13.5px] text-muted-foreground">Type a task above. Quizzes you miss and jobs with closing dates show up here too.</p>
+            <p className="mx-auto mt-1 max-w-sm text-[13.5px] text-muted-foreground">Type a task above.</p>
           </div>
         ) : (
           <div className="space-y-6">

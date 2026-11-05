@@ -204,7 +204,7 @@ export function InterviewPractice({
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                <span>8 tailored interview questions (behavioral, technical, situational)</span>
+                <span>8 questions for this job</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
@@ -290,7 +290,7 @@ export function InterviewPractice({
                   </h3>
 
                   <Textarea
-                    placeholder="Type your answer here... (Use the STAR method for behavioral questions: Situation, Task, Action, Result)"
+                    placeholder="Type your answer: the situation, what you did, the result"
                     value={currentAnswer}
                     onChange={(e) => setCurrentAnswer(e.target.value)}
                     rows={8}

@@ -349,9 +349,9 @@ export default function Interview() {
   return (
     <DashboardLayout>
       <PageHeader
-        eyebrow="Grow"
-        title="Practice studio"
-        description="Answer real scenarios for your role out loud, on camera. Watch it back and see exactly what to keep and what to change."
+        
+        title="Practice"
+        description="Say it out loud. See what to fix."
       />
 
       {phase === 'setup' && (
@@ -366,8 +366,8 @@ export default function Interview() {
               <div className="mt-1.5 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How to practise">
                 {(
                   [
-                    ['live', 'Live, out loud', 'Ropi asks, listens, and follows up on what you say. Like the real thing.'],
-                    ['single', 'One question at a time', 'Answer one scenario, then get the review.'],
+                    ['live', 'Live, out loud', 'Ropi asks and follows up.'],
+                    ['single', 'One question at a time', 'One answer, then your review.'],
                   ] as const
                 ).map(([id, label, note]) => (
                   <button
@@ -421,15 +421,15 @@ export default function Interview() {
                 </label>
               </div>
             </div>
-            <div className="rounded-xl bg-muted/50 p-4 text-[13px] leading-relaxed">
+            <div className="self-start rounded-xl bg-muted/50 p-4 text-[13px] leading-relaxed">
               <div className="font-semibold">How it works</div>
               <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
-                <li>Ropi gives you three real situations this role faces.</li>
-                <li>Hear the question, take a breath, and answer out loud. About two minutes.</li>
-                <li>Watch it back. Your review shows what worked in your own words, what to change and how, your pace and filler words, and what the camera shows.</li>
-                <li>Try again. Your scores are kept so you can see yourself improve.</li>
+                <li>Get three real situations for your role.</li>
+                <li>Answer out loud, about two minutes.</li>
+                <li>Watch it back and see what to change.</li>
+                <li>Try again. Your scores are kept.</li>
               </ol>
-              <p className="mt-3 text-[12px] text-muted-foreground">Your video stays on this device. Only the sound and six still frames are sent for the review.</p>
+              <p className="mt-3 text-[12px] text-muted-foreground">Your video stays on this device.</p>
             </div>
           </div>
         </Card>
@@ -553,7 +553,7 @@ export default function Interview() {
                     </div>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[11.5px] text-muted-foreground">Overall score out of 5, oldest first. Practise a few times a week and watch it climb.</p>
+                <p className="mt-1.5 text-[11.5px] text-muted-foreground">Score out of 5, oldest first.</p>
               </Card>
             )}
           </div>
@@ -595,9 +595,9 @@ export default function Interview() {
               <Card className="p-5 text-[13.5px] leading-relaxed text-muted-foreground">
                 <div className="font-semibold text-foreground">Before you start</div>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>Sit facing a window or a lamp, camera at eye level.</li>
-                  <li>Start with one sentence that answers the question, then your example, then the result.</li>
-                  <li>A short silent pause sounds more confident than “um”.</li>
+                  <li>Face a window or a lamp.</li>
+                  <li>Answer first, then your example, then the result.</li>
+                  <li>A pause sounds surer than “um”.</li>
                 </ul>
               </Card>
             )}
@@ -637,7 +637,7 @@ export default function Interview() {
 
                 <Card className="p-5">
                   <h2 className="text-[15px] font-semibold">How you sounded</h2>
-                  <p className="text-[12px] text-muted-foreground">Measured from your recording.</p>
+                  <p className="text-[12px] text-muted-foreground">From your recording.</p>
                   <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                     {statNotes(stats).map((n) => (
                       <div key={n.label} className="rounded-xl border p-3">
@@ -677,7 +677,7 @@ export default function Interview() {
                 {shots.length > 0 && (
                   <Card className="p-5">
                     <h2 className="text-[15px] font-semibold">What the camera shows</h2>
-                    <p className="text-[12px] text-muted-foreground">Six moments from your answer. Notes are only about what can be seen.</p>
+                    <p className="text-[12px] text-muted-foreground">Only what can be seen.</p>
                     <div className="mt-3 grid grid-cols-3 gap-2">
                       {shots.map((src, i) => {
                         const note = review.presence.find((p) => p.frame === i + 1)?.note;
@@ -694,7 +694,7 @@ export default function Interview() {
 
                 {review.stronger && (
                   <Card className="p-5">
-                    <h2 className="text-[15px] font-semibold">A stronger version, in your words</h2>
+                    <h2 className="text-[15px] font-semibold">A stronger answer</h2>
                     <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed">{review.stronger}</p>
                     <Button size="sm" variant="ghost" className="mt-2" onClick={() => void speechManager.speak(review.stronger.replace(/\[your example\]/gi, 'your example'))}>
                       <Volume2 />

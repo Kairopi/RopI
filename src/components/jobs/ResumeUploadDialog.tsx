@@ -85,7 +85,7 @@ export function ResumeUploadDialog({ userId, onSuccess, open: controlledOpen, on
             <FileText className="h-5 w-5" />
             Your resume
           </DialogTitle>
-          <DialogDescription>Upload a PDF or Word file, or paste the text. Ropi scores every saved job against it and never changes it without asking.</DialogDescription>
+          <DialogDescription>Upload a PDF or Word file, or paste it.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">

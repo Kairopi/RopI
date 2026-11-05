@@ -22,10 +22,10 @@ import { MUSE_BASE as BASE, museAuth, museReady } from '@/lib/api/config';
 
 export type Kind = 'interview' | 'present' | 'onboard' | 'stakeholder';
 export const KINDS: { id: Kind; label: string; note: string }[] = [
-  { id: 'interview', label: 'Interview questions', note: 'Scenario and behaviour questions for the role.' },
-  { id: 'present', label: 'Present an idea', note: 'A two-minute pitch or update to a room.' },
-  { id: 'onboard', label: 'Onboard someone', note: 'Walk a new teammate through how things work.' },
-  { id: 'stakeholder', label: 'Hard conversation', note: 'Push back, say no, or deliver bad news well.' },
+  { id: 'interview', label: 'Interview questions', note: 'Real questions for the role.' },
+  { id: 'present', label: 'Present an idea', note: 'A two-minute pitch.' },
+  { id: 'onboard', label: 'Onboard someone', note: 'Walk a new hire through it.' },
+  { id: 'stakeholder', label: 'Hard conversation', note: 'Say no, or deliver bad news.' },
 ];
 
 export interface Scenario {

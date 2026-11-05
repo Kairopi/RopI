@@ -59,8 +59,7 @@ export default function Login() {
             Turn dead time into growth time.
           </h1>
           <p className="mt-5 max-w-[46ch] text-[16px] leading-relaxed text-white/80">
-            For people studying and job hunting around a full life. Tell Ropi how long you have, on the train or getting
-            ready, and it picks the one thing worth doing. When the week changes, the plan moves with it.
+            Say how long you have. Ropi picks the one thing worth doing.
           </p>
           <div className="mt-10">
             <MinutesDemo />
@@ -86,7 +85,7 @@ export default function Login() {
           <p className="-mt-6 mb-10 font-display text-[22px] font-semibold leading-tight tracking-[-0.02em] lg:hidden">Turn dead time into growth time.</p>
 
           <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.03em]">Start growing</h2>
-          <p className="mt-2 text-[15px] text-muted-foreground">No email or password. Your progress is saved to a private account in this browser.</p>
+          <p className="mt-2 text-[15px] text-muted-foreground">No email or password. Your progress is private to you.</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div className="space-y-2">

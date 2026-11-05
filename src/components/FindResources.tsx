@@ -109,10 +109,10 @@ export function FindResources({
         <div className="px-3.5 py-4">
           <p className="flex items-center gap-2 text-[13px]">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            Searching the web for free videos, docs, courses and podcasts
+            Searching for free videos, docs and podcasts
             <span className="num ml-auto text-[12px] text-muted-foreground">{secs}s</span>
           </p>
-          <p className="mt-1 pl-6 text-[12px] text-muted-foreground">Usually 20 to 30 seconds. You can keep working; it finishes in the background.</p>
+          <p className="mt-1 pl-6 text-[12px] text-muted-foreground">About 20 seconds. Keep working if you like.</p>
         </div>
       )}
 
@@ -156,7 +156,7 @@ export function FindResources({
           </ul>
           <div className={cn('flex flex-wrap items-center gap-2 border-t px-3.5 py-2.5')}>
             <p className="flex-1 text-[11.5px] leading-relaxed text-muted-foreground">
-              Every link came back from a live web search just now. Saved ones with a length can fill your spare minutes on Today.
+              Every link came from a live search.
             </p>
             {unsaved.length > 1 && (
               <Button size="sm" variant="ghost" disabled={saving !== null} onClick={() => save(unsaved, 'all')}>

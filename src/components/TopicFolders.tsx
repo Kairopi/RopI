@@ -80,7 +80,7 @@ export function TopicFolders({ userId }: { userId: string }) {
         </div>
       ) : folders.length === 0 ? (
         <p className="rounded-xl border border-dashed p-5 text-[13px] text-muted-foreground">
-          Take a quiz, upload notes or talk to Ropi about something, and it gets its own folder here. Or start one with New topic.
+          Take a quiz or upload notes and a folder appears here.
         </p>
       ) : (
         <>

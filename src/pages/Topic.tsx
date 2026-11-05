@@ -264,7 +264,7 @@ export default function Topic() {
           )}
           {uploadNote && <p className="mb-3 text-[12.5px] text-muted-foreground" role="status">{uploadNote}</p>}
           {folder.sources.length === 0 ? (
-            !uploading && <p className="text-[13px] text-muted-foreground">Upload your notes (PDF or DOCX) into this folder, and Ropi quizzes you on them with quotes from the page.</p>
+            !uploading && <p className="text-[13px] text-muted-foreground">Upload notes (PDF or DOCX) to get quizzed on them.</p>
           ) : (
             <ul className="divide-y rounded-xl border">
               {folder.sources.map((s) => (
@@ -315,7 +315,7 @@ export default function Topic() {
         {/* Conversations */}
         <Panel id="topic-talks" defaultOpen={folder.conversations.length > 0} title="Conversations with Ropi" meta={folder.conversations.length ? String(folder.conversations.length) : undefined} summary={folder.conversations[0] ? `Last: ${when(folder.conversations[0].started_at)}` : 'None yet'}>
           {folder.conversations.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">Talk to Ropi about this topic and the conversation is kept here, with the time of every message.</p>
+            <p className="text-[13px] text-muted-foreground">Talk to Ropi about this topic. It’s saved here.</p>
           ) : (
             <ul className="divide-y rounded-xl border">
               {folder.conversations.map((c) => {
@@ -392,7 +392,7 @@ export default function Topic() {
               Save link
             </Button>
           </form>
-          <p className="mt-2 text-[11.5px] text-muted-foreground">News and podcasts Ropi finds for you in Talk are saved here automatically.</p>
+          <p className="mt-2 text-[11.5px] text-muted-foreground">News and podcasts from Talk are saved here.</p>
         </Panel>
 
         <div className="flex items-center justify-between pt-2 text-[12px] text-muted-foreground">

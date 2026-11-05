@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { PageHeader } from '@/components/PageHeader';
 import { Card } from '@/components/ui/card';
+import { Panel } from '@/components/Panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Brain, Briefcase, CalendarClock, ChevronDown, Loader2, AlertCircle, MessageSquare } from '@/components/icons';
@@ -44,11 +45,7 @@ function ActivityCalendar({ perDay, onPick }: { perDay: Map<string, number>; onP
   const shade = (n: number) => (n === 0 ? 'bg-muted' : n / max > 0.66 ? 'bg-primary' : n / max > 0.33 ? 'bg-primary/60' : 'bg-primary/30');
 
   return (
-    <Card className="mb-6 p-5">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[14px] font-semibold">Last 5 weeks</h2>
-        <span className="text-[12px] text-muted-foreground">Active {active} of 35 days · click a day to jump to it</span>
-      </div>
+    <Panel id="history-calendar" title="Last 5 weeks" meta={`Active ${active} of 35 days`} summary="Open it to jump to a day." className="mb-6" bodyClassName="pb-5">
       <div className="grid grid-cols-7 gap-1.5 text-center text-[10.5px] text-muted-foreground">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
           <span key={d}>{d}</span>
@@ -77,7 +74,7 @@ function ActivityCalendar({ perDay, onPick }: { perDay: Map<string, number>; onP
           );
         })}
       </div>
-    </Card>
+    </Panel>
   );
 }
 
@@ -201,7 +198,7 @@ export default function Activity() {
 
   return (
     <DashboardLayout>
-      <PageHeader title="What you’ve done" description="Every quiz, review, replan, application and conversation, day by day. Entries can’t be edited or deleted." />
+      <PageHeader title="History" description="Everything you did, by day. Entries can’t be changed." />
 
       {receipts.length > 0 && <ActivityCalendar perDay={perDay} onPick={jumpTo} />}
       {jumpNote && <p className="-mt-3 mb-5 text-[12.5px] text-muted-foreground">{jumpNote}</p>}
@@ -243,7 +240,7 @@ export default function Activity() {
         <div className="rounded-2xl border border-dashed px-6 py-14 text-center">
           <h3 className="text-[17px] font-semibold">Nothing here yet</h3>
           <p className="mx-auto mt-1 max-w-sm text-[13.5px] text-muted-foreground">
-            Take a quiz, review cards, finish a task or tell LifeShift what changed. Each one shows up here with the date and time.
+            Take a quiz or review some cards. It shows up here.
           </p>
         </div>
       ) : (

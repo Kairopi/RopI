@@ -158,7 +158,7 @@ export function ATSScoreCard({ atsScore, previousScore }: ATSScoreCardProps) {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h3 className="mb-0.5 text-[15px] font-semibold">Resume fit</h3>
-          <p className="text-[12.5px] text-muted-foreground">How your resume lines up with this job’s description, the way an ATS checks it.</p>
+          <p className="text-[12.5px] text-muted-foreground">How your resume matches this job.</p>
         </div>
         <div className="flex items-end gap-1">
           {previousScore != null && previousScore !== overall_score && (

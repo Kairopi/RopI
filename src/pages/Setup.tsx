@@ -141,7 +141,7 @@ export default function Setup() {
                 <div className="eyebrow mb-3">Step 1 of 3</div>
                 <h1 className="text-[32px] font-semibold leading-[1.1]">What are you working toward?</h1>
                 <p className="mt-3 text-[15px] text-muted-foreground">
-                  One goal is enough. Ropi uses it to decide what matters when your week gets squeezed.
+                  One goal is enough.
                 </p>
                 <div className="mt-8 space-y-3">
                   <Input
@@ -184,7 +184,7 @@ export default function Setup() {
                 <div className="eyebrow mb-3">Step 2 of 3</div>
                 <h1 className="text-[32px] font-semibold leading-[1.1]">When are you usually free?</h1>
                 <p className="mt-3 text-[15px] text-muted-foreground">
-                  Your normal week, outside work. When a shift or plan changes, you tell LifeShift and only that day moves.
+                  Your usual week, outside work.
                 </p>
 
                 <div className="mt-8 rounded-xl border bg-card transition-colors focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15">
@@ -268,7 +268,7 @@ export default function Setup() {
                 <div className="eyebrow mb-3">Step 3 of 3</div>
                 <h1 className="text-[32px] font-semibold leading-[1.1]">What needs doing this week?</h1>
                 <p className="mt-3 text-[15px] text-muted-foreground">
-                  Type it the way you'd jot it down. Ropi adds review cards, weak spots from your quizzes and job deadlines on its own.
+                  Type it the way you'd jot it down.
                 </p>
 
                 <div className="mt-8 rounded-xl border bg-card transition-colors focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15">

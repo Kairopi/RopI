@@ -384,7 +384,7 @@ export default function Learning() {
               </div>
             ) : (
               <p className="mt-3 text-[12.5px] text-muted-foreground">
-                Every quiz question quotes the exact line its answer comes from, so you can check it against your notes.
+                Every question quotes the line it came from.
               </p>
             )}
             {!sourcesAvailable && (
@@ -460,8 +460,7 @@ export default function Learning() {
             </div>
           ) : guides.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
-              Ask for a <span className="font-medium text-foreground">Study guide + cards</span> above. Ropi writes a short summary with real examples and cards; you keep the
-              ones that are right, and the guide is saved here.
+              Ask for a <span className="font-medium text-foreground">Study guide + cards</span> above. Ropi writes a short summary with examples and cards. Keep the cards you want.
             </p>
           ) : (
             <ul className="-mx-2">
@@ -586,7 +585,7 @@ export default function Learning() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t p-5">
-              <p className="text-[12.5px] text-muted-foreground">Kept cards join your daily reviews and come back right before you’d forget them.</p>
+              <p className="text-[12.5px] text-muted-foreground">Kept cards come back right before you’d forget them.</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setPreview(null)} disabled={isSaving}>
                   Cancel

@@ -51,7 +51,7 @@ export function NextLessonCard({
           <div>
             <h3 className="text-[17px] font-semibold">Writing your next lesson</h3>
             <p className="text-sm text-muted-foreground">
-              Ropi is writing it from the questions you missed (about 10 seconds)
+              Writing it from what you missed
             </p>
           </div>
         </div>
@@ -99,7 +99,7 @@ export function NextLessonCard({
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Nothing to fix from this quiz. Keep your review cards going to hold on to it.
+            Nothing to fix from this quiz.
           </p>
         )}
       </Card>

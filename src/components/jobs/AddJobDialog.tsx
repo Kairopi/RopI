@@ -114,7 +114,7 @@ export function AddJobDialog({ userId, onAdded, open: controlledOpen, onOpenChan
         <DialogHeader>
           <DialogTitle>Add Job to Pipeline</DialogTitle>
           <DialogDescription>
-            Enter job details to start scoring and tailoring your resume
+            Add the details to score your fit
           </DialogDescription>
         </DialogHeader>
 
